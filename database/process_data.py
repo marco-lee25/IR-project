@@ -41,7 +41,6 @@ def tfidf(prepared_text):
 if __name__=="__main__":
     download_data()
     df_data = load_data()
-
     df_data['title'] = df_data['title'].apply(clean_text)
     df_data['abstract'] = df_data['abstract'].apply(clean_text)
     df_data['prepared_text'] = df_data['title'] + ' \n ' + df_data['abstract']
