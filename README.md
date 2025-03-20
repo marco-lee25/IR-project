@@ -19,7 +19,7 @@ conda activate ir-project
 cd IR-project
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirement.txt
 ```
 
 ## The elasticsearch server docker
