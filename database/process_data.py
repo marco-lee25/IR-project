@@ -1,7 +1,7 @@
 import os
 import json
 import pandas as pd
-from utils import download_data, clean_text
+from database.utils import download_data, clean_text
 from sklearn.feature_extraction.text import TfidfVectorizer
 import nltk
 import spacy
@@ -12,20 +12,20 @@ from nltk.stem import WordNetLemmatizer
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 import pickle  # To save TF-IDF indexed data
-from indexing_system import index_elasticsearch, check_elasticsearch_server, delete_elasticsearch_index, check_indices
+from database.indexing_system import index_elasticsearch, check_elasticsearch_server, delete_elasticsearch_index, check_indices
 from sentence_transformers import SentenceTransformer
 
-# Download necessary NLTK resources
-nltk.download("punkt")
-nltk.download("stopwords")
-nltk.download("wordnet")
 
-max_doc = 20
 # topics = ['cs.AI', 'cs.CV', 'cs.IR', 'cs.LG', 'cs.CL']
 topics = ['cs.AI']
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-def load_data(Scibert=True):
+def load_data(Scibert, max_doc):
+    # Also download necessary NLTK resources
+    nltk.download("punkt")
+    nltk.download("stopwords")
+    nltk.download("wordnet")
+
     if Scibert :
         # Load the SciBERT model
         model = SentenceTransformer("allenai/scibert_scivocab_uncased")
@@ -88,33 +88,6 @@ def extract_citations(text):
     citations = [ent.text for ent in doc.ents if ent.label_ == "ORG"]  # Example: extract organization references
     return citations
 
-def search_elasticsearch(query, top_n=5):
-    """Search for documents in Elasticsearch using BM25 ranking."""
-    es = Elasticsearch("http://localhost:9200")  # Connect to Elasticsearch
-
-    search_query = {
-        "query": {
-            "match": {
-                "prepared_text": query  # Search in the indexed text
-            }
-        },
-        "size": top_n  # Return top N results
-    }
-
-    response = es.search(index="arxiv_index", body=search_query)
-    
-    # Extract results
-    results = []
-    for hit in response["hits"]["hits"]:
-        results.append({
-            "id": hit["_id"],
-            "title": hit["_source"]["title"],
-            "abstract": hit["_source"]["abstract"],
-            "score": hit["_score"]  # Relevance score
-        })
-    
-    return results
-
 def test():
     # Connect to Elasticsearch server
     es = Elasticsearch("http://localhost:9200")
@@ -142,18 +115,20 @@ def test():
     for doc in documents[:5]:  # Print only the first 5 for readability
         print(f"ID: {doc['_id']}, Title: {doc['_source']['title']}, Abstract: {doc['_source']['abstract']}")
 
+def build_index_system(index_name = "arxiv_index", use_bert=True, max_doc=500):
+    delete_elasticsearch_index(index_name)
+    if not check_elasticsearch_server():
+        download_data()
+        df_data = load_data(use_bert, max_doc)
+        # Index into Elasticsearch
+        index_elasticsearch(df_data, index_name, use_bert)
+
 if __name__=="__main__":
     use_bert = False
     index_name = "arxiv_index"
-    delete_elasticsearch_index(index_name)
+    # delete_elasticsearch_index(index_name)
     if not check_elasticsearch_server():
         download_data()
         df_data = load_data(use_bert)
         # Index into Elasticsearch
         index_elasticsearch(df_data, index_name, use_bert)
-
-    query = "neuralnetwork"
-    results = search_elasticsearch(query)
-
-    for doc in results:
-        print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n Score: {doc['score']}\n")

@@ -13,6 +13,13 @@ def check_indices():
         print(index)
 
 def check_elasticsearch_server(index_name="arxiv_index"):
+    # Check if Elasticsearch is running
+    if es.ping():
+        print("Elasticsearch server is running.")
+    else:
+        print("Elasticsearch server is NOT running. Please run the docker")
+        exit()
+
     # Check if index exists
     if es.indices.exists(index=index_name):
         doc_count = es.count(index=index_name)["count"]
@@ -39,7 +46,7 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
         }
     }
     if use_bert:
-        index_body["mappings"]["properties"]["embedding"]: {"type": "dense_vector", "dims": 768}  # SciBERT has 768 dimensions
+        index_body["mappings"]["properties"]["embedding"] = {"type": "dense_vector", "dims": 768}  # SciBERT has 768 dimensions
 
         
     response = es.indices.create(index=index_name, body=index_body, ignore=400)
