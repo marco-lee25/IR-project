@@ -2,6 +2,6 @@ pandas
 scikit-learn
 nltk
 spacy
-elasticsearch
+elasticsearch=7.10.1
 sentence-transformers
 kaggle
