@@ -52,7 +52,23 @@ if __name__=="__main__":
 ```
 
 
+## Search Example
+```bash
+cd IR-project
+python main.py "face identify" --use_bm25 True --use_bert True --top_n 2
+```
+Output :
+```bash
+Title: comparing robustness pairwise multiclass neuralnetwork system face recognition
+ Abstract: noise corruption variation face image seriously hurt performance face recognition system make system robust multiclass neuralnetwork classifier capable learning noisy data suggested however large face data set system provide robustness high level paper explore pairwise neuralnetwork system alternative approach improving robustness face recognition experiment approach shown outperform multiclass neuralnetwork system term predictive accuracy face image corrupted noise
+ bm25_score:8.66293
+ vector_score:1.7126617
 
+Title: emotion appraisalcoping model cascade problem
+ Abstract: modelling emotion become challenge nowadays therefore several model produced order express human emotional activity however currently able express close relationship existing emotion cognition appraisalcoping model presented aim simulate emotional impact caused evaluation particular situation appraisal along consequent cognitive reaction intended face situation coping model applied cascade problem small arithmetical exercise designed tenyearold pupil goal create model corresponding child behaviour solving problem using strategy
+ bm25_score:5.0492687
+ vector_score:1.7084448
+```
 
 
 
