@@ -1,5 +1,5 @@
 __pycache__/
 *.pyc
 kaggle.json
-database/data/
 test.py
+arxiv-metadata-oai-snapshot.json

@@ -5,9 +5,9 @@ import search_engine
 import json
 
 if __name__ == "__main__":
-    # build_index_system(index_name="arxiv_index", use_bert=True, max_doc=100)
-    # es = Elasticsearch("http://localhost:9200")
+    # build_index_system(index_name="arxiv_index", use_bert=True, max_doc=1000)
 
+    # es = Elasticsearch("http://localhost:9200")
     # # Get the index mapping
     # mapping = es.indices.get_mapping(index="arxiv_index")
 
