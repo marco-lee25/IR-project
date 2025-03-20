@@ -38,8 +38,6 @@ When building the docker, the indices will be restore using the script ` /databa
   docker build -t ir-project .
   docker run -d --name elasticsearch -p 9200:9200 ir-project
   
-  # Optional to check if any error
-  docker logs -f elasticsearch
 ```
 ### Rebuild the indexing system
 If you want to rebuild the indexing system with different name, number of documents, or specify index method, run the python ` /database/process_data.py `, you can edit `use_bert` and `max_doc` inside the file:
