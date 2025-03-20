@@ -200,7 +200,7 @@ def hybrid_search(query, top_n):
     response = es.msearch(body=search_query)
     return response
 
-def search(query, top_n=5, use_bert=True, use_bm25=True, alpha=0.5):
+def search(query, use_bm25=True, use_bert=True, top_n=5, alpha=0.5):
     if use_bert and use_bm25:
         response = hybrid_search(query, top_n)
     elif use_bert:
@@ -239,7 +239,7 @@ def search(query, top_n=5, use_bert=True, use_bm25=True, alpha=0.5):
             })
     return results
 
-def search_elasticsearch(query, top_n=5, use_bert=True, alpha=0.5):
+def search_elasticsearch(query, top_n=5, use_bm25=True, use_bert=False, alpha=0.5):
     # BM25 + Bert
     es = Elasticsearch("http://localhost:9200")  # Connect to Elasticsearch
     check_elasticsearch_server()

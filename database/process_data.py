@@ -124,11 +124,7 @@ def build_index_system(index_name = "arxiv_index", use_bert=True, max_doc=500):
         index_elasticsearch(df_data, index_name, use_bert)
 
 if __name__=="__main__":
-    use_bert = False
     index_name = "arxiv_index"
-    # delete_elasticsearch_index(index_name)
-    if not check_elasticsearch_server():
-        download_data()
-        df_data = load_data(use_bert)
-        # Index into Elasticsearch
-        index_elasticsearch(df_data, index_name, use_bert)
+    use_bert = True
+    max_doc=1000
+    build_index_system(index_name, use_bert, max_doc)
