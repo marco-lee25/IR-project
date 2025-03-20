@@ -226,7 +226,6 @@ def download_data():
         os.environ["KAGGLE_USERNAME"] = credentials["username"]
         os.environ["KAGGLE_KEY"] = credentials["key"]
 
-
     if system_name == "Windows":
         kaggle_path = os.path.expanduser(os.path.join(current_dir, "./data"))
         os.makedirs(kaggle_path, exist_ok=True)
