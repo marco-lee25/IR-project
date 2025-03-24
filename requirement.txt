@@ -4,5 +4,6 @@ nltk
 spacy
 sentence-transformers
 kaggle
-elasticsearch==7.10.1
-numpy==1.26.4
+elasticsearch
+numpy
+git+https://github.com/boudinfl/pke.git
