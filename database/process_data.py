@@ -12,23 +12,40 @@ from nltk.stem import WordNetLemmatizer
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 import pickle  # To save TF-IDF indexed data
-from database.indexing_system import index_elasticsearch, check_elasticsearch_server, delete_elasticsearch_index, check_indices
-from sentence_transformers import SentenceTransformer
-
+from database.indexing_system import index_elasticsearch, check_elasticsearch_server, delete_elasticsearch_index, build_sentence_corpus_from_json
+from sentence_transformers import models, SentenceTransformer
+from tqdm import tqdm
+from nltk.tokenize import sent_tokenize
+import numpy as np 
+from database import export_index
+import time
 
 # topics = ['cs.AI', 'cs.CV', 'cs.IR', 'cs.LG', 'cs.CL']
 topics = ['cs.AI']
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-def load_data(Scibert, max_doc):
+def load_data(Scibert, max_doc, model=None):
     # Also download necessary NLTK resources
     nltk.download("punkt")
     nltk.download("stopwords")
     nltk.download("wordnet")
 
     if Scibert :
-        # Load the SciBERT model
-        model = SentenceTransformer("allenai/scibert_scivocab_uncased")
+        # # Load the SciBERT model
+        # # model = SentenceTransformer("gsarti/scibert-nli")
+        # word_embedding_model = models.Transformer(
+        #     'gsarti/biobert-nli',
+        #     max_seq_length=128,
+        #     do_lower_case=True
+        # )
+        # pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
+        #     pooling_mode_mean_tokens=True,
+        #     pooling_mode_cls_token=False,
+        #     pooling_mode_max_tokens=False
+        # )
+
+        # model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+
         cols = ['id', 'title', 'abstract', 'categories', 'prepared_text', 'citations', 'embedding']
     else:
         cols = ['id', 'title', 'abstract', 'categories', 'prepared_text', 'citations']
@@ -36,8 +53,12 @@ def load_data(Scibert, max_doc):
     data = []
     file_name = os.path.join(current_dir, 'data','arxiv-metadata-oai-snapshot.json')
 
+    # Count lines once for tqdm total
     with open(file_name, encoding='latin-1') as f:
-        for i, line in enumerate(f):
+        total_lines = sum(1 for _ in f)
+
+    with open(file_name, encoding='latin-1') as f:
+        for i, line in enumerate(tqdm(f, total=total_lines, desc="Processing documents")):
             if len(data) > max_doc:
                 break
             doc = json.loads(line)
@@ -49,6 +70,8 @@ def load_data(Scibert, max_doc):
                 citations = extract_citations(doc['abstract'])  # Extract citations if needed
                 if Scibert:
                     #Generates a dense vector representation of text using SciBERT.
+                    # sentences = sent_tokenize(prepared_text)
+                    # embedding = np.mean(model.encode(sentences), axis=0)
                     embedding = model.encode(prepared_text)
                     data.append([doc_id, processed_title, processed_abstract, doc['categories'], prepared_text, citations, embedding])
                 else:
@@ -116,15 +139,34 @@ def test():
         print(f"ID: {doc['_id']}, Title: {doc['_source']['title']}, Abstract: {doc['_source']['abstract']}")
 
 def build_index_system(index_name = "arxiv_index", use_bert=True, max_doc=500):
+    if use_bert:
+        word_embedding_model = models.Transformer(
+            'gsarti/biobert-nli',
+            max_seq_length=128,
+            do_lower_case=True
+        )
+        pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
+            pooling_mode_mean_tokens=True,
+            pooling_mode_cls_token=False,
+            pooling_mode_max_tokens=False
+        )
+
+        model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+
     delete_elasticsearch_index(index_name)
     if not check_elasticsearch_server():
         download_data()
-        df_data = load_data(use_bert, max_doc)
+        df_data = load_data(use_bert, max_doc, model)
         # Index into Elasticsearch
         index_elasticsearch(df_data, index_name, use_bert)
+    
+    if use_bert:
+        time.sleep(10)
+        export_index.export_index()
+        build_sentence_corpus_from_json(model)
 
 if __name__=="__main__":
     index_name = "arxiv_index"
     use_bert = True
-    max_doc=1000
+    max_doc=5000
     build_index_system(index_name, use_bert, max_doc)

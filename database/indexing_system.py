@@ -1,6 +1,11 @@
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
-
+import json
+from tqdm import tqdm
+import pickle
+from nltk.tokenize import sent_tokenize
+import nltk
+# from export_index import export_index
 
 # Define a global Elasticsearch client
 es = Elasticsearch("http://localhost:9200")
@@ -29,7 +34,43 @@ def check_elasticsearch_server(index_name="arxiv_index"):
         print(f"Index '{index_name}' does NOT exist.")
         return False
 
-# Indexes documents into Elasticsearch with citations & embeddings.
+# GPT
+def build_sentence_corpus_from_json(model=None, json_file="./database/data/arxiv_index_data.json", output_file="./database/data/sentence_corpus.pkl"):
+    nltk.download('punkt')
+
+    # Load exported Elasticsearch data
+    with open(json_file, "r", encoding="utf-8") as f:
+        documents = json.load(f)
+    
+    sentences = []
+    
+    print("Extracting sentences from documents...")
+    for doc in tqdm(documents):
+        source = doc.get("_source", {})
+        title = source.get('title', '')
+        abstract = source.get('abstract', '')
+        full_text = f"{title}. {abstract}".strip()
+
+        # Use NLTK to tokenize into sentences
+        doc_sentences = sent_tokenize(full_text)
+        
+        # Optional: Filter out very short or meaningless sentences
+        doc_sentences = [s.strip() for s in doc_sentences if len(s.strip().split()) >= 5]
+        
+        sentences.extend(doc_sentences)
+
+    # Remove duplicate sentences
+    sentences = list(dict.fromkeys(sentences))
+    
+    print(f"Encoding {len(sentences)} unique sentences...")
+    embeddings = model.encode(sentences, show_progress_bar=True, batch_size=32)
+    
+    # Save the encoded corpus
+    with open(output_file, "wb") as f:
+        pickle.dump({"sentences": sentences, "embeddings": embeddings}, f)
+    
+    print(f"Saved {len(sentences)} sentences and embeddings to {output_file}")
+
 def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
     if not es.ping():
         print("ERROR: Cannot connect to Elasticsearch. Make sure it's running.")
@@ -45,11 +86,13 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
             }
         }
     }
+
     if use_bert:
-        index_body["mappings"]["properties"]["embedding"] = {"type": "dense_vector", "dims": 768}  # SciBERT has 768 dimensions
+        index_body["mappings"]["properties"]["embedding"] = {"type": "dense_vector", "dims": 768, "index": True, 
+                                                             "similarity": "cosine"}  # SciBERT has 768 dimensions
 
         
-    response = es.indices.create(index=index_name, body=index_body, ignore=400)
+    response = es.indices.create(index=index_name, body=index_body)
 
     # Index documents
     if use_bert:
@@ -84,6 +127,7 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
 
     bulk(es, actions)
     print(f"Indexed {len(df)} documents into Elasticsearch.")
+    return
 
 def delete_elasticsearch_index(index_name="arxiv_index"):
     # Deletes an index from Elasticsearch.
