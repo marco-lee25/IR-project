@@ -2,6 +2,8 @@ pandas
 scikit-learn
 nltk
 spacy
-elasticsearch
 sentence-transformers
 kaggle
+elasticsearch
+numpy
+git+https://github.com/boudinfl/pke.git

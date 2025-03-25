@@ -188,7 +188,6 @@ category_map = {
 'stat.TH': 'Statistics Theory'
 }
 
-
 def check_library(library_name):
     try:
         __import__(library_name)
@@ -226,7 +225,6 @@ def download_data():
         credentials = json.load(f)
         os.environ["KAGGLE_USERNAME"] = credentials["username"]
         os.environ["KAGGLE_KEY"] = credentials["key"]
-
 
     if system_name == "Windows":
         kaggle_path = os.path.expanduser(os.path.join(current_dir, "./data"))

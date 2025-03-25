@@ -1,0 +1,31 @@
+{
+    "arxiv_index": {
+        "mappings": {
+            "properties": {
+                "abstract": {
+                    "type": "text"
+                },
+                "citations": {
+                    "type": "keyword"
+                },
+                "embedding": {
+                    "type": "dense_vector",
+                    "dims": 768,
+                    "index": true,
+                    "similarity": "cosine",
+                    "index_options": {
+                        "type": "int8_hnsw",
+                        "m": 16,
+                        "ef_construction": 100
+                    }
+                },
+                "prepared_text": {
+                    "type": "text"
+                },
+                "title": {
+                    "type": "text"
+                }
+            }
+        }
+    }
+}

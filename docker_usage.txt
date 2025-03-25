@@ -1,0 +1,16 @@
+# For custom elasticsearch_v8, loading the pre-index
+docker build -t ir-project_v8 .
+docker run -d --name ir_project -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 ir-project_v8
+
+# If you want to check the docker's log
+docker logs -f ir_project
+
+# For base elasticsearch_v8 : 
+docker run -d --name elasticsearch_base_v8 -p 9200:9200 -e "discovery.type=single-node" -e "xpack.security.enabled=false" docker.elastic.co/elasticsearch/elasticsearch:8.17.3
+
+
+# Check indices
+curl -X GET "http://localhost:9200/_cat/indices?v"
+
+# Check simple in index system
+curl -X GET "http://localhost:9200/arxiv_index/_search?pretty" -H "Content-Type: application/json" -d "{ \"query\": { \"match_all\": {} }, \"size\": 1 }"

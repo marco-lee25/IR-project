@@ -1,0 +1,62 @@
+
+from elasticsearch import Elasticsearch
+from database.process_data import build_index_system
+import search_engine
+import json
+import argparse
+from preprocess import preprocess_sys
+
+def process_input(se, query, use_bm25=True, use_bert=False, top_n=5):
+    print(f"Query: {query}")
+    print(f"Use BM25: {use_bm25}")
+    print(f"Use BERT: {use_bert}")
+
+    # Call your search function with parameters
+    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
+
+    # Print the search results
+    for doc in results:
+        if 'bm25_score' in doc and "vector_score" in doc:
+            print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n bm25_score:{doc['bm25_score']}\n vector_score:{doc['vector_score']}\n")
+        else:
+            print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n score:{doc['score']}\n")
+
+
+# Example usage 
+# No expansion
+# python main.py "face identify" --use_bm25 --use_bert
+# With expansion on synoyms
+# python main.py "face identify" --use_bm25 --use_bert --use_expansion --exp_syn
+
+if __name__ == "__main__":
+    preprocess = preprocess_sys()
+    se = search_engine.engine()
+
+    parser = argparse.ArgumentParser(description="Run the search engine with parameters.")
+
+    # Positional argument: Query
+    parser.add_argument("query", type=str, help="Search query")
+
+    # Optional flags
+    parser.add_argument("--use_bm25", action="store_true", help="Enable BM25-based search")
+    parser.add_argument("--use_bert", action="store_true", help="Enable BERT-based semantic search")
+    parser.add_argument("--use_expansion", action="store_true", help="Query expansion")
+    parser.add_argument("--exp_syn", action="store_true", help="Apply synoyms expansion")
+    parser.add_argument("--exp_sem", action="store_true", help="Query semantic expansion")
+    parser.add_argument("--top_n", type=int,default=5, help='Max number of documents return')
+    
+    args = parser.parse_args()
+    if args.use_expansion:
+        if not(args.exp_syn) and not(args.exp_sem):
+            print("Please specify expansion method by --exp_syn & --exp_sem")
+            exit()
+        processed_query = preprocess.process_query(args.query,  use_semantic=args.exp_sem, use_synonyms=args.exp_syn)
+        print(f"Query expansion result : {processed_query}")
+
+        # TODO 
+        # Handle the expaned query, for example combining into single string or separate to different query to search.
+        processed_query = ' '.join(processed_query)
+        # Run main function with parsed arguments
+        process_input(se, processed_query, args.use_bm25, args.use_bert, args.top_n)
+    else:
+        process_input(se, args.query, args.use_bm25, args.use_bert, args.top_n)
