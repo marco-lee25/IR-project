@@ -6,4 +6,5 @@ sentence-transformers
 kaggle
 elasticsearch
 numpy
+torchvision
 git+https://github.com/boudinfl/pke.git
