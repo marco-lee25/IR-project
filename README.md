@@ -1,3 +1,8 @@
+# TODO 
+1. Ranking system
+2. Refine semantic search and query expansion
+3. Add citation index
+4. Summarization on result
 
 # IR Project - Search Engine 
 
