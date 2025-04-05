@@ -2,11 +2,15 @@ from elasticsearch import Elasticsearch
 from database.indexing_system import check_elasticsearch_server
 from sentence_transformers import models, SentenceTransformer
 
+#TODO 
+# Scoring may need to edit the srcipt score ot function score to combine BM25 and Cosine Similarity to give a better result.
+
+
 class engine():
     def __init__(self):
         self.es = Elasticsearch("http://localhost:9200")  # Connect to Elasticsearch
         word_embedding_model = models.Transformer(
-            'gsarti/biobert-nli',
+            'allenai/scibert_scivocab_uncased',
             max_seq_length=128,
             do_lower_case=True
         )
@@ -42,12 +46,18 @@ class engine():
         query_embedding = self.model.encode(query).tolist()
         search_query = {
             "query": {
-                "script_score": {
-                    "query": {"match_all": {}},
-                    "script": {
-                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                        "params": {"query_vector": query_embedding}
-                    }
+                "nested": {
+                    "path": "paragraphs",
+                    "query": {
+                        "script_score": {
+                            "query": {"match_all": {}},
+                            "script": {
+                                "source": "cosineSimilarity(params.query_vector, 'paragraphs.embedding') + 1.0",
+                                "params": {"query_vector": query_embedding}
+                            }
+                        }
+                    },
+                    "score_mode": "max"  # Use the highest paragraph similarity score
                 }
             },
             "size": top_n
@@ -55,7 +65,7 @@ class engine():
         response = self.es.search(index="arxiv_index", body=search_query)
         return response
 
-    def hybrid_search(self, query, top_n):
+    def hybrid_search(self, query, top_n, mode="max"):
         print("Hybrid search")
         # BM25 + Bert
         check_elasticsearch_server()
@@ -71,15 +81,21 @@ class engine():
             },
 
             # -- Query 2: Script Score (Vector)
-            {"index": "arxiv_index"},
+            {"index": "arxiv_index"},  # Updated index name
             {
                 "query": {
-                    "script_score": {
-                        "query": {"match_all": {}},
-                        "script": {
-                            "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                            "params": {"query_vector": query_embedding}
-                        }
+                    "nested": {
+                        "path": "paragraphs",
+                        "query": {
+                            "script_score": {
+                                "query": {"match_all": {}},
+                                "script": {
+                                    "source": "cosineSimilarity(params.query_vector, 'paragraphs.embedding') + 1.0",
+                                    "params": {"query_vector": query_embedding}
+                                }
+                            }
+                        },
+                        "score_mode": mode  # Use the highest paragraph similarity score
                     }
                 },
                 "size": top_n,
