@@ -29,14 +29,23 @@ print(f"Created index: {response.status_code}, {response.text}")
 with open(f"/usr/share/elasticsearch/{INDEX_NAME}_data.json", "r") as f:
     documents = json.load(f)
 
-bulk_data = ""
-for doc in documents:
-    bulk_data += json.dumps({"index": {"_index": INDEX_NAME, "_id": doc["_id"]}}) + "\n"
-    bulk_data += json.dumps(doc["_source"]) + "\n"
+batch_size = 100
+bulked = 0
 
-# Bulk insert
-bulk_response = requests.post(f"{ES_HOST}/_bulk", data=bulk_data, headers={"Content-Type": "application/x-ndjson"})
-if bulk_response.status_code not in (200, 201):
-    print(f"Failed to bulk insert: {bulk_response.status_code}, {bulk_response.text}")
-    exit(1)
-print(f"Index restored: {bulk_response.status_code}, {bulk_response.text}")
+for i in range(0, len(documents), batch_size):
+    bulk_data = ""
+    for doc in documents[i:i + batch_size]:
+        bulk_data += json.dumps({"index": {"_index": INDEX_NAME, "_id": doc["_id"]}}) + "\n"
+        bulk_data += json.dumps(doc["_source"]) + "\n"
+
+    bulk_response = requests.post(
+        f"{ES_HOST}/_bulk",
+        data=bulk_data,
+        headers={"Content-Type": "application/x-ndjson"}
+    )
+
+    if bulk_response.status_code not in (200, 201):
+        print(f"Failed to bulk insert batch {i // batch_size + 1}: {bulk_response.status_code}, {bulk_response.text}")
+        exit(1)
+
+    print(f"Batch {i}, Index restored: {bulk_response.status_code}, {bulk_response.text}")

@@ -14,3 +14,6 @@ curl -X GET "http://localhost:9200/_cat/indices?v"
 
 # Check simple in index system
 curl -X GET "http://localhost:9200/arxiv_index/_search?pretty" -H "Content-Type: application/json" -d "{ \"query\": { \"match_all\": {} }, \"size\": 1 }"
+
+# Check number of index
+curl -X GET "localhost:9200/arxiv_index/_count?pretty"

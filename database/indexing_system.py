@@ -71,6 +71,65 @@ def build_sentence_corpus_from_json(model=None, json_file="./database/data/arxiv
     
     print(f"Saved {len(sentences)} sentences and embeddings to {output_file}")
 
+# Old
+# def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
+#     if not es.ping():
+#         print("ERROR: Cannot connect to Elasticsearch. Make sure it's running.")
+#         return
+
+#     index_body = {
+#     "mappings": {
+#         "properties": {
+#             "title": {"type": "text"},
+#             "abstract": {"type": "text"},
+#             "prepared_text": {"type": "text"},
+#             "citations": {"type": "keyword"},
+#             }
+#         }
+#     }
+
+#     if use_bert:
+#         index_body["mappings"]["properties"]["embedding"] = {"type": "dense_vector", "dims": 768, "index": True, 
+#                                                              "similarity": "cosine"}  # SciBERT has 768 dimensions
+
+        
+#     response = es.indices.create(index=index_name, body=index_body)
+
+#     # Index documents
+#     if use_bert:
+#         actions = [
+#             {
+#                 "_index": index_name,
+#                 "_id": row["id"],
+#                 "_source": {
+#                     "title": row["title"],
+#                     "abstract": row["abstract"],
+#                     "prepared_text": row["prepared_text"],
+#                     "citations": row["citations"],
+#                     "embedding": row["embedding"].tolist()  # Convert numpy array to list
+#                 }
+#             }
+#             for _, row in df.iterrows()
+#         ]
+#     else:
+#         actions = [
+#             {
+#                 "_index": index_name,
+#                 "_id": row["id"],
+#                 "_source": {
+#                     "title": row["title"],
+#                     "abstract": row["abstract"],
+#                     "prepared_text": row["prepared_text"],
+#                     "citations": row["citations"],
+#                 }
+#             }
+#             for _, row in df.iterrows()
+#         ]
+
+#     bulk(es, actions)
+#     print(f"Indexed {len(df)} documents into Elasticsearch.")
+#     return
+
 def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
     if not es.ping():
         print("ERROR: Cannot connect to Elasticsearch. Make sure it's running.")
@@ -88,8 +147,13 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
     }
 
     if use_bert:
-        index_body["mappings"]["properties"]["embedding"] = {"type": "dense_vector", "dims": 768, "index": True, 
-                                                             "similarity": "cosine"}  # SciBERT has 768 dimensions
+        index_body["mappings"]["properties"]["paragraphs"] = {
+                    "type": "nested",
+                    "properties": {
+                        "text": {"type": "text"},
+                        "embedding": {"type": "dense_vector", "dims": 768, "index": True, "similarity": "cosine"}
+                    }
+                }
 
         
     response = es.indices.create(index=index_name, body=index_body)
@@ -103,9 +167,9 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
                 "_source": {
                     "title": row["title"],
                     "abstract": row["abstract"],
-                    "prepared_text": row["prepared_text"],
+                    "prepared_text": " ".join(row["prepared_text"]),  # Convert list to string
                     "citations": row["citations"],
-                    "embedding": row["embedding"].tolist()  # Convert numpy array to list
+                    "paragraphs": row["paragraph_embeddings"]  # Nested field with text and embeddings
                 }
             }
             for _, row in df.iterrows()
