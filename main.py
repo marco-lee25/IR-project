@@ -8,7 +8,7 @@ from preprocess_system.preprocess import preprocess_sys
 from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
 
-def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
+def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
     print(f"Query: {query}")
     print(f"BM25: {use_bm25}, Vector: {use_bert}")
     
