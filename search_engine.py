@@ -46,7 +46,10 @@ class engine():
                 search_query.append({
                 "query": {
                     "match": {
-                        "prepared_text": term
+                        "prepared_text": {
+                            "query": term,
+                            "boost": 2.0 if term == original_query else 1.0
+                        }
                     }
                 },
                 "size": top_n
