@@ -63,9 +63,9 @@ def load_data(Scibert, max_doc, model=None):
                     # sentences = sent_tokenize(prepared_text)
                     # embedding = np.mean(model.encode(sentences), axis=0)
 
-                    data.append([doc_id, processed_title, processed_abstract, doc['categories'], prepared_text, paragraph_embeddings])
+                    data.append([doc_id, doc['title'], doc['abstract'], doc['categories'], prepared_text, paragraph_embeddings])
                 else:
-                    data.append([doc_id, processed_title, processed_abstract, doc['categories'], prepared_text])
+                    data.append([doc_id, doc['title'], doc['abstract'], doc['categories'], prepared_text])
     
     df_data = pd.DataFrame(data=data, columns=cols)
     print("Number of documents loaded:", df_data.shape[0])
