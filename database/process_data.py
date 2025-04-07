@@ -34,7 +34,7 @@ def load_data(Scibert, max_doc, model=None):
     if Scibert :
         cols = ['id', 'title', 'abstract', 'categories', 'prepared_text', 'paragraph_embeddings']
     else:
-        cols = ['id', 'title', 'abstract', 'categories', 'prepared_text', ]
+        cols = ['id', 'title', 'abstract', 'categories', 'prepared_text']
 
     data = []
     file_name = os.path.join(current_dir, 'data','arxiv-metadata-oai-snapshot.json')
@@ -54,8 +54,6 @@ def load_data(Scibert, max_doc, model=None):
                 processed_title = preprocess_text(doc['title'],mode="title")
                 processed_abstract = preprocess_text(doc['abstract'])
                 prepared_text = [processed_title] + processed_abstract  # Combined text for better indexing
-
-                # citations = extract_citations(doc['abstract'])  # Extract citations if needed
                 if Scibert:
                     # Generates a dense vector representation of text using SciBERT.
                     paragraph_embeddings = [
@@ -65,10 +63,10 @@ def load_data(Scibert, max_doc, model=None):
                     # sentences = sent_tokenize(prepared_text)
                     # embedding = np.mean(model.encode(sentences), axis=0)
 
-                    data.append([doc_id, doc['title'], doc['abstract'], doc['categories'], prepared_text, paragraph_embeddings])
+                    data.append([doc_id, processed_title, processed_abstract, doc['categories'], prepared_text, paragraph_embeddings])
                 else:
-                    data.append([doc_id, doc['title'], doc['abstract'], doc['categories'], prepared_text])
-
+                    data.append([doc_id, processed_title, processed_abstract, doc['categories'], prepared_text])
+    
     df_data = pd.DataFrame(data=data, columns=cols)
     print("Number of documents loaded:", df_data.shape[0])
     return df_data
@@ -114,13 +112,6 @@ def preprocess_text(text, mode=None):
             tokens = " ".join(tokens)
             result.append(tokens)
         return result
-
-def extract_citations(text):
-    # Load Spacy NLP model for citation extraction
-    nlp = spacy.load("en_core_web_sm")
-    doc = nlp(text)
-    citations = [ent.text for ent in doc.ents if ent.label_ == "ORG"]  # Example: extract organization references
-    return citations
 
 def test():
     # Connect to Elasticsearch server
