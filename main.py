@@ -7,6 +7,9 @@ import argparse
 from preprocess_system.preprocess import preprocess_sys
 from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
+from preprocess import preprocess_sys
+from summarizer import BartSummarizer
+from ranking_function import HybridRanker
 
 def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
     print(f"Query: {query}")
@@ -42,6 +45,7 @@ def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=
 
 
 def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
+def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
     print(f"Query: {query}")
     print(f"BM25: {use_bm25}, Vector: {use_bert}")
     
@@ -129,6 +133,10 @@ if __name__ == "__main__":
     parser.add_argument("--exp_sem", action="store_true", help="Query semantic expansion")
     parser.add_argument("--top_n", type=int,default=5, help='Max number of documents return')
     parser.add_argument("--use_summary", action="store_true", help='Enable BART summarization')
+    parser.add_argument("--bm25_weight", type=float, default=0.5, 
+                   help="Weight for BM25 in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--vector_weight", type=float, default=0.5,
+                   help="Weight for vector search in hybrid ranking (0.0-1.0)")
     parser.add_argument("--bm25_weight", type=float, default=0.5, 
                    help="Weight for BM25 in hybrid ranking (0.0-1.0)")
     parser.add_argument("--vector_weight", type=float, default=0.5,
