@@ -200,11 +200,10 @@ class engine():
                     "size": top_n,
                     "explain": True
                 })
-                # Perform multi-search
 
-            print(len(search_query))
+            # Perform multi-search
             response = self.es.msearch(body=search_query)
-                
+
         return response
 
     def search(self, query, use_bm25=True, use_bert=True, top_n=5, alpha=0.5):
@@ -215,26 +214,45 @@ class engine():
         else :
             response = self.bm25_only_search(query, top_n)
         
+
         if use_bert and use_bm25:
-            bm25_res = response["responses"][0]["hits"]["hits"]
-            vector_res = response["responses"][1]["hits"]["hits"]
-            # Extract results
             results = []
-            for bm25, bert in zip(bm25_res, vector_res):
-                bm25_score = bm25["_score"]  # BM25 relevance score
-                vector_score = bert["_score"]  # Dense vector score (if exists)
+            num_terms = len(query) if len(query) > 1 else 1
 
-                # # Combine BM25 and vector search scores using weighted sum
-                combined_score = alpha * vector_score + (1 - alpha) * bm25_score
+            if len(query) <= 1:
+                bm25_res = response["responses"][0]["hits"]["hits"]
+                vector_res = response["responses"][1]["hits"]["hits"]
+                # Extract results
+                for bm25, bert in zip(bm25_res, vector_res):
+                    bm25_score = bm25["_score"]  # BM25 relevance score
+                    vector_score = bert["_score"]  # Dense vector score (if exists)
 
-                results.append({
-                    "id": bm25["_id"],
-                    "title": bm25["_source"]["title"],
-                    "abstract": bm25["_source"]["abstract"],
-                    "bm25_score": bm25_score,
-                    "vector_score": vector_score
-                })
+                    # # Combine BM25 and vector search scores using weighted sum
+                    combined_score = alpha * vector_score + (1 - alpha) * bm25_score
 
+                    results.append({
+                        "id": bm25["_id"],
+                        "title": bm25["_source"]["title"],
+                        "abstract": bm25["_source"]["abstract"],
+                        "bm25_score": bm25_score,
+                        "vector_score": vector_score
+                    })
+            else:
+                for i in range(0, len(response["responses"]), 2):  # Step by 2 for BM25+vector pairs
+                    bm25_res = response["responses"][i]["hits"]["hits"]
+                    vector_res = response["responses"][i + 1]["hits"]["hits"]
+                    # Take top_n results for this term
+                    for bm25, bert in zip(bm25_res, vector_res):
+                        bm25_score = bm25["_score"] 
+                        vector_score = bert["_score"] 
+                        combined_score = alpha * vector_score + (1 - alpha) * bm25_score
+                        results.append({
+                            "id": bm25["_id"],
+                            "title": bm25["_source"]["title"],
+                            "abstract": bm25["_source"]["abstract"],
+                            "bm25_score": bm25_score,
+                            "vector_score": vector_score
+                        })
         else:
             results = []
             if "responses" in response:  # msearch case
