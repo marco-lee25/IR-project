@@ -22,67 +22,45 @@ class engine():
 
         self.model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
-
+    # Not support expansion yet
     def bm25_only_search(self, query, top_n):
         print("bm25 only search")
         # BM25 
         check_elasticsearch_server()
-
-        # BM25-only search (no vector similarity)
-        search_query = {
-            "query": {
-                "match": {
-                    "prepared_text": query
-                }
-            },
-            "size": top_n
-        }
-        response = self.es.search(index="arxiv_index", body=search_query)
+        if len(query) <= 1:
+            # BM25-only search (no vector similarity)
+            search_query = {
+                "query": {
+                    "match": {
+                        "prepared_text": query[0]
+                    }
+                },
+                "size": top_n
+            }
+            response = self.es.search(index="arxiv_index", body=search_query)
+        else:
+            search_query = []
+            original_query = query[0]
+            for term in query:
+                search_query.append({"index": "arxiv_index"})
+                search_query.append({
+                "query": {
+                    "match": {
+                        "prepared_text": term
+                    }
+                },
+                "size": top_n
+            })
+            response = self.es.msearch(body=search_query)
         return response
 
     def bert_only_search(self, query, top_n=8):
         print("Bert only search")
         check_elasticsearch_server()
-        query_embedding = self.model.encode(query).tolist()
-        search_query = {
-            "query": {
-                "nested": {
-                    "path": "paragraphs",
-                    "query": {
-                        "script_score": {
-                            "query": {"match_all": {}},
-                            "script": {
-                                "source": "cosineSimilarity(params.query_vector, 'paragraphs.embedding') + 1.0",
-                                "params": {"query_vector": query_embedding}
-                            }
-                        }
-                    },
-                    "score_mode": "max"  # Use the highest paragraph similarity score
-                }
-            },
-            "size": top_n
-        }
-        response = self.es.search(index="arxiv_index", body=search_query)
-        return response
 
-    def hybrid_search(self, query, top_n, mode="max"):
-        print("Hybrid search")
-        # BM25 + Bert
-        check_elasticsearch_server()
-        query_embedding = self.model.encode(query).tolist()
-        # Generated using GPT, search query with separate BM25 and vector scoring
-        search_query = [
-            # -- Query 1: BM25
-            {"index": "arxiv_index"},
-            {
-                "query": {"match": {"prepared_text": query}},
-                "size": top_n,
-                "explain": True
-            },
-
-            # -- Query 2: Script Score (Vector)
-            {"index": "arxiv_index"},  # Updated index name
-            {
+        if len(query) <= 1:
+            query_embedding = self.model.encode(query[0]).tolist()
+            search_query = {
                 "query": {
                     "nested": {
                         "path": "paragraphs",
@@ -95,14 +73,135 @@ class engine():
                                 }
                             }
                         },
-                        "score_mode": mode  # Use the highest paragraph similarity score
+                        "score_mode": "max"
                     }
                 },
-                "size": top_n,
-                "explain": True
+                "size": top_n
             }
-        ]
-        response = self.es.msearch(body=search_query)
+            response = self.es.search(body=search_query)
+        else:
+            search_query = []
+            original_query = query[0]
+            for term in query:
+                boost = 2.0 if term == original_query else 1.0
+                term_embedding = self.model.encode(term).tolist()
+                # Add to multi-search body
+                search_query.append({"index": "arxiv_index"})
+                search_query.append({
+                    "query": {
+                        "nested": {
+                            "path": "paragraphs",
+                            "query": {
+                                "script_score": {
+                                    "query": {"match_all": {}},
+                                    "script": {
+                                        "source": "cosineSimilarity(params.query_vector, 'paragraphs.embedding') * params.boost + 1.0",
+                                        "params": {
+                                            "query_vector": term_embedding,
+                                            "boost": boost
+                                        }
+                                    }
+                                }
+                            },
+                            "score_mode": "max"
+                        }
+                    },
+                    "size": top_n
+                })
+
+            response = self.es.msearch(body=search_query)
+
+        return response
+
+    def hybrid_search(self, query, top_n, mode="max"):
+        print("Hybrid search")
+        # BM25 + Bert
+        check_elasticsearch_server()
+        if len(query) <= 1:
+            query = query[0]
+            query_embedding = self.model.encode(query).tolist()
+            # Generated using GPT, search query with separate BM25 and vector scoring
+            search_query = [
+                # -- Query 1: BM25
+                {"index": "arxiv_index"},
+                {
+                    "query": {"match": {"prepared_text": query}},
+                    "size": top_n,
+                    "explain": True
+                },
+                # -- Query 2: Script Score (Vector)
+                {"index": "arxiv_index"},  # Updated index name
+                {
+                    "query": {
+                        "nested": {
+                            "path": "paragraphs",
+                            "query": {
+                                "script_score": {
+                                    "query": {"match_all": {}},
+                                    "script": {
+                                        "source": "cosineSimilarity(params.query_vector, 'paragraphs.embedding') + 1.0",
+                                        "params": {"query_vector": query_embedding}
+                                    }
+                                }
+                            },
+                            "score_mode": mode  # Use the highest paragraph similarity score
+                        }
+                    },
+                    "size": top_n,
+                    "explain": True
+                }
+            ]
+            response = self.es.msearch(body=search_query)
+    
+        # Query expansion
+        else:
+            original_query = query[0]
+            search_query = []
+            # Build multi-search body with BM25 and vector searches for each expanded term
+            for term in query:
+                term_embedding = self.model.encode(term).tolist()
+                boost = 2.0 if term == original_query else 1.0  # Higher boost for original query
+                # BM25 search for this term
+                search_query.append({"index": "arxiv_index"})
+                search_query.append({
+                    "query": {
+                        "match": {
+                            "prepared_text": {
+                                "query": term,
+                                "boost": boost
+                            }
+                        }
+                    },
+                    "size": top_n,
+                    "explain": True
+                })
+
+                # Vector search for this term
+                search_query.append({"index": "arxiv_index"})
+                search_query.append({
+                    "query": {
+                        "nested": {
+                            "path": "paragraphs",
+                            "query": {
+                                "script_score": {
+                                    "query": {"match_all": {}},
+                                    "script": {
+                                        "source": "cosineSimilarity(params.query_vector, 'paragraphs.embedding') * params.boost + 1.0",
+                                        "params": {"query_vector": term_embedding, "boost": boost}
+                                    }
+                                }
+                            },
+                            "score_mode": mode
+                        }
+                    },
+                    "size": top_n,
+                    "explain": True
+                })
+                # Perform multi-search
+
+            print(len(search_query))
+            response = self.es.msearch(body=search_query)
+                
         return response
 
     def search(self, query, use_bm25=True, use_bert=True, top_n=5, alpha=0.5):
@@ -112,7 +211,7 @@ class engine():
             response = self.bert_only_search(query, top_n)
         else :
             response = self.bm25_only_search(query, top_n)
-
+        
         if use_bert and use_bm25:
             bm25_res = response["responses"][0]["hits"]["hits"]
             vector_res = response["responses"][1]["hits"]["hits"]
@@ -135,11 +234,24 @@ class engine():
 
         else:
             results = []
-            for hit in response["hits"]["hits"]:
-                results.append({
-                    "id": hit["_id"],
-                    "title": hit["_source"]["title"],
-                    "abstract": hit["_source"]["abstract"],
-                    "score": hit["_score"]  # Relevance score
-                })
+            if "responses" in response:  # msearch case
+                print("Handling msearch case")
+                for res in response["responses"]:
+                    for hit in res["hits"]["hits"]:
+                        results.append({
+                            "id": hit["_id"],
+                            "title": hit["_source"]["title"],
+                            "abstract": hit["_source"]["abstract"],
+                            "score": hit["_score"]
+                        })
+
+            else:  # single search case
+                for hit in response["hits"]["hits"]:
+                    results.append({
+                        "id": hit["_id"],
+                        "title": hit["_source"]["title"],
+                        "abstract": hit["_source"]["abstract"],
+                        "score": hit["_score"]
+                    })
+
         return results

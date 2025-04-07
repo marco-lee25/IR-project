@@ -5,31 +5,41 @@ import search_engine
 import json
 import argparse
 from preprocess import preprocess_sys
+from summarizer import BartSummarizer
 
-def process_input(se, query, use_bm25=True, use_bert=False, top_n=5):
+def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
     print(f"Query: {query}")
     print(f"Use BM25: {use_bm25}")
     print(f"Use BERT: {use_bert}")
 
     # Call your search function with parameters
     results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
-
+    print("===================================")
+    print(len(results))
     # Print the search results
+    
     for doc in results:
-        if 'bm25_score' in doc and "vector_score" in doc:
-            print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n bm25_score:{doc['bm25_score']}\n vector_score:{doc['vector_score']}\n")
+        if not summarizer is None:
+            summary = summarizer.summarize(doc["abstract"])
+            if 'bm25_score' in doc and "vector_score" in doc:
+                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n Summary: {summary}\n bm25_score:{doc['bm25_score']}\n vector_score:{doc['vector_score']}\n")
+            else:
+                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n Summary: {summary}\n score:{doc['score']}\n")
         else:
-            print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n score:{doc['score']}\n")
-
+            if 'bm25_score' in doc and "vector_score" in doc:
+                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n bm25_score:{doc['bm25_score']}\n vector_score:{doc['vector_score']}\n")
+            else:
+                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n score:{doc['score']}\n")
 
 # Example usage 
 # No expansion
 # python main.py "face identify" --use_bm25 --use_bert
 # With expansion on synoyms
 # python main.py "face identify" --use_bm25 --use_bert --use_expansion --exp_syn
-
 if __name__ == "__main__":
     preprocess = preprocess_sys()
+
+    print("Initalizing search engine...")
     se = search_engine.engine()
 
     parser = argparse.ArgumentParser(description="Run the search engine with parameters.")
@@ -44,8 +54,12 @@ if __name__ == "__main__":
     parser.add_argument("--exp_syn", action="store_true", help="Apply synoyms expansion")
     parser.add_argument("--exp_sem", action="store_true", help="Query semantic expansion")
     parser.add_argument("--top_n", type=int,default=5, help='Max number of documents return')
+    parser.add_argument("--use_summary", action="store_true", help='Enable BART summarization')
     
     args = parser.parse_args()
+
+    summarizer = BartSummarizer() if args.use_summary else None 
+
     if args.use_expansion:
         if not(args.exp_syn) and not(args.exp_sem):
             print("Please specify expansion method by --exp_syn & --exp_sem")
@@ -55,8 +69,11 @@ if __name__ == "__main__":
 
         # TODO 
         # Handle the expaned query, for example combining into single string or separate to different query to search.
-        processed_query = ' '.join(processed_query)
+        # processed_query = ' '.join(processed_query)
+        # print(processed_query)
+        # exit()
+        
         # Run main function with parsed arguments
-        process_input(se, processed_query, args.use_bm25, args.use_bert, args.top_n)
+        process_input(se, processed_query, args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)
     else:
-        process_input(se, args.query, args.use_bm25, args.use_bert, args.top_n)
+        process_input(se, [args.query], args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)

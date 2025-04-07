@@ -16,6 +16,13 @@ index_body = {
     "mappings": mapping[INDEX_NAME]["mappings"]
 }
 
+
+# Check if the index already exists
+check = requests.head(f"{ES_HOST}/{INDEX_NAME}")
+if check.status_code == 200:
+    print(f"Index '{INDEX_NAME}' already exists. Skipping creation and import.")
+    exit(0)
+
 print("Index body being sent:", json.dumps(index_body, indent=4))
 
 # Create index with settings and mapping together
