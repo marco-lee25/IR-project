@@ -3,7 +3,6 @@ import json
 import pandas as pd
 import re
 from database.utils import download_data, clean_text
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 import nltk
 import spacy
@@ -14,16 +13,12 @@ from nltk.stem import WordNetLemmatizer
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 import pickle  # To save TF-IDF indexed data
-
 from database.indexing_system import index_elasticsearch, check_elasticsearch_server, delete_elasticsearch_index, build_sentence_corpus_from_json
-
 from sentence_transformers import models, SentenceTransformer
 from tqdm import tqdm
 from nltk.tokenize import sent_tokenize
 import numpy as np 
-
 from database import export_index
-
 import time
 
 # topics = ['cs.AI', 'cs.CV', 'cs.IR', 'cs.LG', 'cs.CL']
@@ -37,9 +32,9 @@ def load_data(Scibert, max_doc, model=None):
     nltk.download("wordnet")
 
     if Scibert :
-        cols = ['id', 'title', 'abstract', 'categories', 'prepared_text', 'citations', 'paragraph_embeddings']
+        cols = ['id', 'title', 'abstract', 'categories', 'prepared_text', 'paragraph_embeddings']
     else:
-        cols = ['id', 'title', 'abstract', 'categories', 'prepared_text', 'citations']
+        cols = ['id', 'title', 'abstract', 'categories', 'prepared_text', ]
 
     data = []
     file_name = os.path.join(current_dir, 'data','arxiv-metadata-oai-snapshot.json')
@@ -53,14 +48,14 @@ def load_data(Scibert, max_doc, model=None):
             if len(data) > max_doc:
                 break
             doc = json.loads(line)
-            
+
             if doc['categories'] in topics:
                 doc_id = str(doc['id'])  # Ensure ID is a string
                 processed_title = preprocess_text(doc['title'],mode="title")
                 processed_abstract = preprocess_text(doc['abstract'])
                 prepared_text = [processed_title] + processed_abstract  # Combined text for better indexing
 
-                citations = extract_citations(doc['abstract'])  # Extract citations if needed
+                # citations = extract_citations(doc['abstract'])  # Extract citations if needed
                 if Scibert:
                     # Generates a dense vector representation of text using SciBERT.
                     paragraph_embeddings = [
@@ -70,10 +65,10 @@ def load_data(Scibert, max_doc, model=None):
                     # sentences = sent_tokenize(prepared_text)
                     # embedding = np.mean(model.encode(sentences), axis=0)
 
-                    data.append([doc_id, processed_title, processed_abstract, doc['categories'], prepared_text, citations, paragraph_embeddings])
+                    data.append([doc_id, doc['title'], doc['abstract'], doc['categories'], prepared_text, paragraph_embeddings])
                 else:
-                    data.append([doc_id, processed_title, processed_abstract, doc['categories'], prepared_text, citations])
-    
+                    data.append([doc_id, doc['title'], doc['abstract'], doc['categories'], prepared_text])
+
     df_data = pd.DataFrame(data=data, columns=cols)
     print("Number of documents loaded:", df_data.shape[0])
     return df_data
@@ -161,6 +156,7 @@ def build_index_system(index_name = "arxiv_index", use_bert=True, max_doc=500, r
             max_seq_length=128,
             do_lower_case=True
         )
+        
         pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
             pooling_mode_mean_tokens=True,
             pooling_mode_cls_token=False,
