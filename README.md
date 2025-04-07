@@ -63,7 +63,7 @@ Title: decision flexibility
 ```
 
 ### Rebuild the indexing system
-If you want to rebuild the indexing system with different name, number of documents, or specify index method, run the python ` /database/process_data.py `, you can edit `use_bert` and `max_doc` inside the file:
+If you want to rebuild the indexing system with different name, number of documents, or specify index method, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
 ```python
 if __name__=="__main__":
     index_name = "arxiv_index"

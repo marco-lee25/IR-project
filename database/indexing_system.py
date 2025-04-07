@@ -118,7 +118,6 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
             "title": {"type": "text"},
             "abstract": {"type": "text"},
             "prepared_text": {"type": "text"},
-            # "citations": {"type": "keyword"},
             }
         }
     }
@@ -144,7 +143,6 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
                     "title": row["title"],
                     "abstract": row["abstract"],
                     "prepared_text": " ".join(row["prepared_text"]),  # Convert list to string
-                    # "citations": row["citations"],
                     "paragraphs": row["paragraph_embeddings"]  # Nested field with text and embeddings
                 }
             }
@@ -159,7 +157,6 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
                     "title": row["title"],
                     "abstract": row["abstract"],
                     "prepared_text": row["prepared_text"],
-                    # "citations": row["citations"],
                 }
             }
             for _, row in df.iterrows()
