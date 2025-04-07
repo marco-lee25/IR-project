@@ -9,7 +9,6 @@ USER root
 RUN apt-get update
 RUN apt-get install -y python3 python3-pip curl
 
-
 # Install Python packages
 RUN pip3 install elasticsearch requests
 
