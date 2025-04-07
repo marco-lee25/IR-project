@@ -5,9 +5,6 @@
                 "abstract": {
                     "type": "text"
                 },
-                "citations": {
-                    "type": "keyword"
-                },
                 "paragraphs": {
                     "type": "nested",
                     "properties": {
