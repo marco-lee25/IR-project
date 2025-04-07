@@ -3,7 +3,6 @@ import json
 import pandas as pd
 import re
 from database.utils import download_data, clean_text
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 import nltk
 import spacy
@@ -14,16 +13,12 @@ from nltk.stem import WordNetLemmatizer
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 import pickle  # To save TF-IDF indexed data
-
 from database.indexing_system import index_elasticsearch, check_elasticsearch_server, delete_elasticsearch_index, build_sentence_corpus_from_json
-
 from sentence_transformers import models, SentenceTransformer
 from tqdm import tqdm
 from nltk.tokenize import sent_tokenize
 import numpy as np 
-
 from database import export_index
-
 import time
 
 # topics = ['cs.AI', 'cs.CV', 'cs.IR', 'cs.LG', 'cs.CL']
@@ -53,7 +48,7 @@ def load_data(Scibert, max_doc, model=None):
             if len(data) > max_doc:
                 break
             doc = json.loads(line)
-            
+
             if doc['categories'] in topics:
                 doc_id = str(doc['id'])  # Ensure ID is a string
                 processed_title = preprocess_text(doc['title'],mode="title")
@@ -152,6 +147,7 @@ def build_index_system(index_name = "arxiv_index", use_bert=True, max_doc=500, r
             max_seq_length=128,
             do_lower_case=True
         )
+        
         pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
             pooling_mode_mean_tokens=True,
             pooling_mode_cls_token=False,

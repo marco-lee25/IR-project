@@ -71,7 +71,7 @@ def check_elasticsearch_server(index_name="arxiv_index"):
 #     print(f"Saved {len(sentences)} sentences and embeddings to {output_file}")
 
 # GPT new
-def build_sentence_corpus_from_json(json_file="./database/data/arxiv_index_data.json", output_file="./database/data/sentence_corpus.pkl"):
+def build_sentence_corpus_from_json(model=None, json_file="./database/data/arxiv_index_data.json", output_file="./database/data/sentence_corpus.pkl"):
     # Load the JSON data containing documents
     with open(json_file, "r", encoding="utf-8") as f:
         documents = json.load(f)

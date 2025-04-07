@@ -104,3 +104,7 @@ def export_index():
     with open(save_path, "w") as f:
         json.dump(documents, f, indent=4)
     print(f"Exported {len(documents)} documents to {save_path}")
+
+
+if __name__ == "__main__":
+    export_index()
