@@ -1,6 +1,8 @@
 __pycache__/
 *.pyc
 .history/
-kaggle.json
+database/kaggle.json
 test.py
 arxiv-metadata-oai-snapshot.json
+./.idea
+.idea

@@ -12,6 +12,8 @@ RUN apt-get install -y python3 python3-pip curl
 # Install Python packages
 RUN pip3 install elasticsearch requests
 
+RUN python -m nltk.downloader punkt stopwords wordnet punkt_tab
+
 # Copy index files
 COPY ./database/data/arxiv_index_mapping.json /usr/share/elasticsearch/arxiv_index_mapping.json
 COPY ./database/data/arxiv_index_settings.json /usr/share/elasticsearch/arxiv_index_settings.json

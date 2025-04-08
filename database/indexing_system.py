@@ -162,7 +162,9 @@ def index_elasticsearch(df, index_name="arxiv_index", use_bert=False):
             for _, row in df.iterrows()
         ]
 
-    bulk(es, actions)
+    # bulk(es, actions)
+    bulk(es, actions, chunk_size=500, request_timeout=60)
+
     print(f"Indexed {len(df)} documents into Elasticsearch.")
     return
 

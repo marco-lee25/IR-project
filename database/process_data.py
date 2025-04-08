@@ -21,9 +21,12 @@ import numpy as np
 from database import export_index
 import time
 
+from nltk.tokenize import word_tokenize, PunktSentenceTokenizer
+
 # topics = ['cs.AI', 'cs.CV', 'cs.IR', 'cs.LG', 'cs.CL']
 topics = ['cs.AI']
 current_dir = os.path.dirname(os.path.abspath(__file__))
+
 
 def load_data(Scibert, max_doc, model=None):
     # Also download necessary NLTK resources
@@ -91,7 +94,10 @@ def preprocess_text(text, mode=None):
     if mode == "title":
         text = text.lower()  # Lowercasing
         text = text.translate(str.maketrans("", "", string.punctuation))  # Remove punctuation
-        tokens = word_tokenize(text)  # Tokenization
+        # tokens = word_tokenize(text)  # Tokenization
+
+        punkt = PunktSentenceTokenizer()
+        tokens = word_tokenize(text)
         tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]  # Lemmatization & Stopword Removal
         tokens = " ".join(tokens)
         return tokens
