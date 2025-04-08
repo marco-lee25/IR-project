@@ -54,7 +54,9 @@ class preprocess_sys():
 
         # self.tokenizer = T5Tokenizer.from_pretrained('t5-small')
         # self.t5_model = T5ForConditionalGeneration.from_pretrained('t5-small')
-        self.word2vec = KeyedVectors.load_word2vec_format('./model/GoogleNews-vectors-negative300.bin', binary=True)
+
+        # Download weight from https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?resourcekey=0-wjGZdNAUop6WykTtMip30g
+        self.word2vec = KeyedVectors.load_word2vec_format('./preprocess_system/GoogleNews-vectors-negative300.bin', binary=True)
         self.word2vec_min_sim = 0.5
         self.word2vec_topn = 12
         self.lemmatizer = WordNetLemmatizer()
