@@ -100,6 +100,10 @@ if __name__ == "__main__":
                    help="Weight for BM25 in hybrid ranking (0.0-1.0)")
     parser.add_argument("--vector_weight", type=float, default=0.5,
                    help="Weight for vector search in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--bm25_weight", type=float, default=0.5, 
+                   help="Weight for BM25 in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--vector_weight", type=float, default=0.5,
+                   help="Weight for vector search in hybrid ranking (0.0-1.0)")
     
     args = parser.parse_args()
 
