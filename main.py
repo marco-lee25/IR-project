@@ -4,9 +4,6 @@ from database.process_data import build_index_system
 import search_engine
 import json
 import argparse
-from preprocess_system.preprocess import preprocess_sys
-from summarize_system.summarizer import BartSummarizer
-from ranking_system.ranking_function import HybridRanker
 from preprocess import preprocess_sys
 from summarizer import BartSummarizer
 from ranking_function import HybridRanker
