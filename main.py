@@ -76,28 +76,35 @@ def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, sum
 
 def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
     print(f"Query: {query}")
-    print(f"Use BM25: {use_bm25}")
-    print(f"Use BERT: {use_bert}")
-
-    # Call your search function with parameters
-    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
-    print("===================================")
-    print(len(results))
-    # Print the search results
+    print(f"BM25: {use_bm25}, Vector: {use_bert}")
     
-    for doc in results:
-        if not summarizer is None:
-            summary = summarizer.summarize(doc["abstract"])
-            if 'bm25_score' in doc and "vector_score" in doc:
-                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n Summary: {summary}\n bm25_score:{doc['bm25_score']}\n vector_score:{doc['vector_score']}\n")
-            else:
-                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n Summary: {summary}\n score:{doc['score']}\n")
+    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
+    ranker = HybridRanker(bm25_weight=args.bm25_weight, vector_weight=args.vector_weight)
+    # Apply hybrid ranking if both scores exist
+    if all('bm25_score' in doc and 'vector_score' in doc for doc in results) and ranker:
+        results = ranker.rank_documents(results)
+    
+    print("="*50)
+    for i, doc in enumerate(results[:top_n], 1):
+        output = [
+            f"RESULT {i}:",
+            f"Title: {doc['title']}",
+            f"Abstract: {doc['abstract'][:200]}...",
+        ]
+        
+        if 'combined_score' in doc:
+            output.extend([
+                f"BM25: {doc['bm25_score']:.3f} (norm: {doc['normalized_bm25']:.3f})",
+                f"Vector: {doc['vector_score']:.3f} (norm: {doc['normalized_vector']:.3f})",
+                f"Combined: {doc['combined_score']:.3f}"
+            ])
         else:
-            if 'bm25_score' in doc and "vector_score" in doc:
-                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n bm25_score:{doc['bm25_score']}\n vector_score:{doc['vector_score']}\n")
-            else:
-                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n score:{doc['score']}\n")
-
+            output.append(f"BM25: {doc['bm25_score']:.3f}\n Vector: {doc['vector_score']:.3f}")
+            
+        if summarizer:
+            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
+            
+        print("\n".join(output) + "\n" + "-"*50)
 # Example usage 
 # No expansion
 # python main.py "face identify" --use_bm25 --use_bert
