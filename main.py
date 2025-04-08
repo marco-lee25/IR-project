@@ -6,8 +6,42 @@ import json
 import argparse
 from preprocess_system.preprocess import preprocess_sys
 from summarize_system.summarizer import BartSummarizer
+from ranking_system.ranking_function import HybridRanker
 
-def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
+def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
+    print(f"Query: {query}")
+    print(f"BM25: {use_bm25}, Vector: {use_bert}")
+    
+    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
+    ranker = HybridRanker(bm25_weight=args.bm25_weight, vector_weight=args.vector_weight)
+    # Apply hybrid ranking if both scores exist
+    if all('bm25_score' in doc and 'vector_score' in doc for doc in results) and ranker:
+        results = ranker.rank_documents(results)
+    
+    print("="*50)
+    for i, doc in enumerate(results[:top_n], 1):
+        output = [
+            f"RESULT {i}:",
+            f"Title: {doc['title']}",
+            f"Abstract: {doc['abstract'][:200]}...",
+        ]
+        
+        if 'combined_score' in doc:
+            output.extend([
+                f"BM25: {doc['bm25_score']:.3f} (norm: {doc['normalized_bm25']:.3f})",
+                f"Vector: {doc['vector_score']:.3f} (norm: {doc['normalized_vector']:.3f})",
+                f"Combined: {doc['combined_score']:.3f}"
+            ])
+        else:
+            output.append(f"BM25: {doc['bm25_score']:.3f}\n Vector: {doc['vector_score']:.3f}")
+            
+        if summarizer:
+            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
+            
+        print("\n".join(output) + "\n" + "-"*50)
+
+
+def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
     print(f"Query: {query}")
     print(f"Use BM25: {use_bm25}")
     print(f"Use BERT: {use_bert}")
@@ -55,6 +89,10 @@ if __name__ == "__main__":
     parser.add_argument("--exp_sem", action="store_true", help="Query semantic expansion")
     parser.add_argument("--top_n", type=int,default=5, help='Max number of documents return')
     parser.add_argument("--use_summary", action="store_true", help='Enable BART summarization')
+    parser.add_argument("--bm25_weight", type=float, default=0.5, 
+                   help="Weight for BM25 in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--vector_weight", type=float, default=0.5,
+                   help="Weight for vector search in hybrid ranking (0.0-1.0)")
     
     args = parser.parse_args()
 
