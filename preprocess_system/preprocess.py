@@ -49,6 +49,7 @@ class preprocess_sys():
             pooling_mode_max_tokens=False
         )
 
+
         self.extractor = YAKE()
         self.model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
