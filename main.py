@@ -4,8 +4,8 @@ from database.process_data import build_index_system
 import search_engine
 import json
 import argparse
-from preprocess import preprocess_sys
-from summarizer import BartSummarizer
+from preprocess_system.preprocess import preprocess_sys
+from summarize_system.summarizer import BartSummarizer
 
 def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
     print(f"Query: {query}")
