@@ -4,3 +4,7 @@ __pycache__/
 kaggle.json
 test.py
 arxiv-metadata-oai-snapshot.json
+preprocess_system/GoogleNews-vectors-negative300.bin.gz
+preprocess_system/GoogleNews-vectors-negative300.bin
+database/data/arxiv_index_data.json
+database/data/sentence_corpus.pkl
