@@ -8,7 +8,40 @@ from preprocess_system.preprocess import preprocess_sys
 from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
 
-def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
+def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
+    print(f"Query: {query}")
+    print(f"BM25: {use_bm25}, Vector: {use_bert}")
+    
+    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
+    ranker = HybridRanker(bm25_weight=args.bm25_weight, vector_weight=args.vector_weight)
+    # Apply hybrid ranking if both scores exist
+    if all('bm25_score' in doc and 'vector_score' in doc for doc in results) and ranker:
+        results = ranker.rank_documents(results)
+    
+    print("="*50)
+    for i, doc in enumerate(results[:top_n], 1):
+        output = [
+            f"RESULT {i}:",
+            f"Title: {doc['title']}",
+            f"Abstract: {doc['abstract'][:200]}...",
+        ]
+        
+        if 'combined_score' in doc:
+            output.extend([
+                f"BM25: {doc['bm25_score']:.3f} (norm: {doc['normalized_bm25']:.3f})",
+                f"Vector: {doc['vector_score']:.3f} (norm: {doc['normalized_vector']:.3f})",
+                f"Combined: {doc['combined_score']:.3f}"
+            ])
+        else:
+            output.append(f"BM25: {doc['bm25_score']:.3f}\n Vector: {doc['vector_score']:.3f}")
+            
+        if summarizer:
+            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
+            
+        print("\n".join(output) + "\n" + "-"*50)
+
+
+def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
     print(f"Query: {query}")
     print(f"BM25: {use_bm25}, Vector: {use_bert}")
     

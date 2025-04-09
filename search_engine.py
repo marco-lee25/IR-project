@@ -218,6 +218,7 @@ class engine():
 
         # Execute the search
         response = self.es.msearch(body=search_query)
+
         return response
 
     def search(self, query, use_bm25=True, use_bert=True, top_n=5, alpha=0.5):
