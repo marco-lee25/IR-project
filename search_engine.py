@@ -117,23 +117,25 @@ class engine():
         return response
 
     def hybrid_search(self, query, top_n, mode="max"):
-        print("Hybrid search")
-        # BM25 + Bert
+        print("Hybrid search with weighted query terms")
         check_elasticsearch_server()
+        
+        # Calculate weights
+        original_weight = 0.6  # 60% for original query
+        expansion_weight = 0.4  # 40% for all expansion terms combined
+        
         if len(query) <= 1:
+            # Single query case (no expansion)
             query = query[0]
             query_embedding = self.model.encode(query).tolist()
-            # Generated using GPT, search query with separate BM25 and vector scoring
             search_query = [
-                # -- Query 1: BM25
                 {"index": "arxiv_index"},
                 {
                     "query": {"match": {"prepared_text": query}},
                     "size": top_n,
                     "explain": True
                 },
-                # -- Query 2: Script Score (Vector)
-                {"index": "arxiv_index"},  # Updated index name
+                {"index": "arxiv_index"},
                 {
                     "query": {
                         "nested": {
@@ -147,31 +149,40 @@ class engine():
                                     }
                                 }
                             },
-                            "score_mode": mode  # Use the highest paragraph similarity score
+                            "score_mode": mode
                         }
                     },
                     "size": top_n,
                     "explain": True
                 }
             ]
-            response = self.es.msearch(body=search_query)
-    
-        # Query expansion
         else:
+            # Query expansion case
             original_query = query[0]
+            expansion_terms = query[1:]
+            # print(f"query: {query}")
+            # print(f"origin: {original_query}")
+            # print(f"expanded: {expansion_terms}")
+            num_expansion_terms = len(expansion_terms) if expansion_terms else 1
+            
             search_query = []
-            # Build multi-search body with BM25 and vector searches for each expanded term
             for term in query:
                 term_embedding = self.model.encode(term).tolist()
-                boost = 2.0 if term == original_query else 1.0  # Higher boost for original query
-                # BM25 search for this term
+                
+                # Calculate term-specific weight
+                if term == original_query:
+                    term_weight = original_weight  # 60% for original
+                else:
+                    term_weight = expansion_weight / num_expansion_terms  # Distribute 40% among expansions
+                
+                # BM25 search with weight
                 search_query.append({"index": "arxiv_index"})
                 search_query.append({
                     "query": {
                         "match": {
                             "prepared_text": {
                                 "query": term,
-                                "boost": boost
+                                "boost": term_weight * 2.0  # Scale for Elasticsearch boost
                             }
                         }
                     },
@@ -179,7 +190,7 @@ class engine():
                     "explain": True
                 })
 
-                # Vector search for this term
+                # Vector search with weight
                 search_query.append({"index": "arxiv_index"})
                 search_query.append({
                     "query": {
@@ -189,8 +200,12 @@ class engine():
                                 "script_score": {
                                     "query": {"match_all": {}},
                                     "script": {
-                                        "source": "cosineSimilarity(params.query_vector, 'paragraphs.embedding') * params.boost + 1.0",
-                                        "params": {"query_vector": term_embedding, "boost": boost}
+                                        "source": f"""
+                                        cosineSimilarity(params.query_vector, 'paragraphs.embedding') 
+                                        * {term_weight} 
+                                        + 1.0
+                                        """,
+                                        "params": {"query_vector": term_embedding}
                                     }
                                 }
                             },
@@ -201,8 +216,8 @@ class engine():
                     "explain": True
                 })
 
-            # Perform multi-search
-            response = self.es.msearch(body=search_query)
+        # Execute the search
+        response = self.es.msearch(body=search_query)
 
         return response
 

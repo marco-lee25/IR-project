@@ -8,3 +8,7 @@ elasticsearch
 numpy
 torchvision
 git+https://github.com/boudinfl/pke.git
+accelerate==1.6.0
+psutil==7.0.0
+keybert
+gensim
