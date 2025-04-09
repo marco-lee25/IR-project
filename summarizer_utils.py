@@ -21,3 +21,21 @@ class BartSummarizer:
             early_stopping=True
         )
         return self.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+
+
+from summarizer import Summarizer
+
+# Load model once (global)
+bert_model = Summarizer()
+
+def summarize_text(text, query=None, ratio=0.3):
+    """
+    Summarizes text using BERT summarizer.
+    If a query is provided, makes the summary more query-aware.
+    """
+    # if query:
+    #     summary = bert_model(text, query=query, ratio=ratio)
+    # else:
+    summary = bert_model(text, ratio=ratio)
+    return summary

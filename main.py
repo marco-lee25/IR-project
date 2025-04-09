@@ -5,7 +5,7 @@ import search_engine
 import json
 import argparse
 from preprocess import preprocess_sys
-from summarizer import BartSummarizer
+from summarizer_utils import BartSummarizer, summarize_text
 
 def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
     print(f"Query: {query}")
@@ -21,17 +21,33 @@ def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=
     for doc in results:
         if not summarizer is None:
             summary = summarizer.summarize(doc["abstract"])
+            summary2=summarize_text(doc["abstract"], query)
+            doc["summary"] = summary
+            doc["summary2"] = summary2
+
             if 'bm25_score' in doc and "vector_score" in doc:
                 print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n Summary: {summary}\n bm25_score:{doc['bm25_score']}\n vector_score:{doc['vector_score']}\n")
+                # print("********************","Summary2: {summary2}\n")
+                print(f"******************** Summary2: {summary2}\n")
+
             else:
-                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n Summary: {summary}\n score:{doc['score']}\n")
+                print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n Summary: {summary}\n Summary2: {summary2}\n score:{doc['score']}\n")
+                print(f"******************** Summary2: {summary2}\n")
+
         else:
+            # summary2=summarize_text(doc["abstract"], query)
+            # doc["summary2"] = summary2
+            print("no summarizer")
             if 'bm25_score' in doc and "vector_score" in doc:
                 print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n bm25_score:{doc['bm25_score']}\n vector_score:{doc['vector_score']}\n")
+
             else:
                 print(f"Title: {doc['title']}\n Abstract: {doc['abstract']}\n score:{doc['score']}\n")
+            # print(f"******************** Summary2: {summary2}\n")
+            # print(f"!!!!!1 Summary2: {doc['summary2']}\n")
 
-# Example usage 
+
+# Example usage
 # No expansion
 # python main.py "face identify" --use_bm25 --use_bert
 # With expansion on synoyms
@@ -67,7 +83,7 @@ if __name__ == "__main__":
         processed_query = preprocess.process_query(args.query,  use_semantic=args.exp_sem, use_synonyms=args.exp_syn)
         print(f"Query expansion result : {processed_query}")
 
-        # TODO 
+        # TODO
         # Handle the expaned query, for example combining into single string or separate to different query to search.
         # processed_query = ' '.join(processed_query)
         # print(processed_query)
