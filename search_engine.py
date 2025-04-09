@@ -159,7 +159,7 @@ class engine():
         else:
             # Query expansion case
             original_query = query[0]
-            expansion_terms = query[2:]
+            expansion_terms = query[1:]
             # print(f"query: {query}")
             # print(f"origin: {original_query}")
             # print(f"expanded: {expansion_terms}")
