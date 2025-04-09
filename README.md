@@ -43,6 +43,15 @@ When building the docker, the indices will be restore using the script ` /databa
   docker run -d --name ir_project -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 ir-project_v8
   
 ```
+### Rebuild the indexing system
+If you want to rebuild the indexing system with different name, number of documents, or specify index method, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
+```python
+if __name__=="__main__":
+    index_name = "arxiv_index"
+    use_bert = True
+    max_doc=2000
+    build_index_system(index_name, use_bert, max_doc)
+```
 ## Search Example
 ```bash
 cd IR-project
@@ -107,16 +116,6 @@ any centralized or decentralized P2P networ...
 BM25: 13.594 (norm: 0.681)
 Vector: 2.529 (norm: 0.956)
 Combined: 0.818
-```
-
-### Rebuild the indexing system
-If you want to rebuild the indexing system with different name, number of documents, or specify index method, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
-```python
-if __name__=="__main__":
-    index_name = "arxiv_index"
-    use_bert = True
-    max_doc=1000
-    build_index_system(index_name, use_bert, max_doc)
 ```
 
 
