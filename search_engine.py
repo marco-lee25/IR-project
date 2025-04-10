@@ -7,21 +7,21 @@ from sentence_transformers import models, SentenceTransformer
 
 
 class engine():
-    def __init__(self):
+    def __init__(self, model):
         self.es = Elasticsearch("http://localhost:9200")  # Connect to Elasticsearch
-        word_embedding_model = models.Transformer(
-            'allenai/scibert_scivocab_uncased',
-            max_seq_length=128,
-            do_lower_case=True
-        )
-        pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
-            pooling_mode_mean_tokens=True,
-            pooling_mode_cls_token=False,
-            pooling_mode_max_tokens=False
-        )
-
-        self.model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
-
+        self.model = model
+        # word_embedding_model = models.Transformer(
+        #     'allenai/scibert_scivocab_uncased',
+        #     max_seq_length=128,
+        #     do_lower_case=True
+        # )
+        # pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
+        #     pooling_mode_mean_tokens=True,
+        #     pooling_mode_cls_token=False,
+        #     pooling_mode_max_tokens=False
+        # )
+        # self.model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+        # self.model.to(self.device)
     # Not support expansion yet
     def bm25_only_search(self, query, top_n):
         print("bm25 only search")
