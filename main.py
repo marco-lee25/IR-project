@@ -7,6 +7,8 @@ import argparse
 from preprocess_system.preprocess import preprocess_sys
 from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
+import torch
+from scibert.model import scibert_model
 
 def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
     print(f"Query: {query}")
@@ -111,10 +113,14 @@ def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, sum
 # With expansion on synoyms
 # python main.py "face identify" --use_bm25 --use_bert --use_expansion --exp_syn
 if __name__ == "__main__":
-    preprocess = preprocess_sys()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = scibert_model(device)
+
+    print("Initalizing preprocess system...")
+    preprocess = preprocess_sys(model, device)
 
     print("Initalizing search engine...")
-    se = search_engine.engine()
+    se = search_engine.engine(model)
 
     parser = argparse.ArgumentParser(description="Run the search engine with parameters.")
 
@@ -136,7 +142,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    summarizer = BartSummarizer() if args.use_summary else None 
+    summarizer = BartSummarizer(device) if args.use_summary else None 
 
     if args.use_expansion:
         if not(args.exp_syn) and not(args.exp_sem):
