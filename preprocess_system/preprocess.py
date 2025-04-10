@@ -3,7 +3,7 @@ from transformers import *
 
 from nltk.corpus import wordnet
 from pke.unsupervised import YAKE
-
+import torch
 
 import numpy as np
 import json
@@ -22,7 +22,8 @@ import string
 
 logging.set_verbosity_error()
 class preprocess_sys():
-    def __init__(self, json_file="./database/data/arxiv_index_data.json", output_file="./database/data/sentence_corpus.pkl"):
+    def __init__(self, model, device, json_file="./database/data/arxiv_index_data.json", output_file="./database/data/sentence_corpus.pkl"):
+        self.device = device
         self.index_data_path = json_file
         self.corpus_path = output_file
         self.candidate_terms = None
@@ -38,36 +39,66 @@ class preprocess_sys():
         self.yake_window = 2
         self.yake_max_ngram = 3
 
-        word_embedding_model = models.Transformer(
-            'allenai/scibert_scivocab_uncased',
-            max_seq_length=128,
-            do_lower_case=True
-        )
-        pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
-            pooling_mode_mean_tokens=True,
-            pooling_mode_cls_token=False,
-            pooling_mode_max_tokens=False
-        )
+        # word_embedding_model = models.Transformer(
+        #     'allenai/scibert_scivocab_uncased',
+        #     max_seq_length=128,
+        #     do_lower_case=True
+        # )
+        # pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
+        #     pooling_mode_mean_tokens=True,
+        #     pooling_mode_cls_token=False,
+        #     pooling_mode_max_tokens=False
+        # )
 
 
         self.extractor = YAKE()
-        self.model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+        self.model = model
+        # self.model = SentenceTransformer(modules=[word_embedding_model, pooling_model]).to(self.device)
 
         # self.tokenizer = T5Tokenizer.from_pretrained('t5-small')
         # self.t5_model = T5ForConditionalGeneration.from_pretrained('t5-small')
 
         # Download weight from https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?resourcekey=0-wjGZdNAUop6WykTtMip30g
         self.word2vec = KeyedVectors.load_word2vec_format('./preprocess_system/GoogleNews-vectors-negative300.bin', binary=True)
+        self.vocab_words = self.word2vec.index_to_key  # List of words
+        self.word2vec_vectors = torch.tensor(self.word2vec.vectors, device=self.device)  # Convert to GPU tensor
+
         self.word2vec_min_sim = 0.5
         self.word2vec_topn = 12
         self.lemmatizer = WordNetLemmatizer()
         self.stemmer = PorterStemmer()
         self.stop_words = set(stopwords.words("english"))
 
-
         # self.build_sentence_corpus_from_json()
         self.load_corpus()
 
+    def _set_batch_size(self):
+        """Dynamically set batch size based on available GPU memory."""
+        if str(self.device) != "cuda":
+            return 10000  # Default for CPU
+
+        # Get total GPU memory
+        total_memory = torch.cuda.get_device_properties(self.device).total_memory  # in bytes
+        print(f"Total GPU memory: {total_memory / 1024**3:.2f} GB")
+
+        # Memory already allocated (e.g., by SciBERT)
+        allocated_memory = torch.cuda.memory_allocated(self.device)
+        print(f"Allocated memory after SciBERT: {allocated_memory / 1024**3:.2f} GB")
+
+        # Reserve some memory for overhead (e.g., 1GB for PyTorch and temporary tensors)
+        reserved_memory = 1 * 1024**3  # 1GB
+        available_memory = total_memory - allocated_memory - reserved_memory
+        print(f"Available memory for Word2Vec: {available_memory / 1024**3:.2f} GB")
+
+        # Each vector is 300 floats (float32 = 4 bytes) -> 1200 bytes
+        vector_size = 300 * 4  # bytes
+        # Batch memory = batch_size * vector_size + word_vec (negligible)
+        # Also account for similarity tensor (~batch_size * 4 bytes)
+        max_batch_size = int(available_memory / (vector_size + 4))  # Conservative estimate
+        max_batch_size = max(1000, min(max_batch_size, 20000))  # Clamp between 1000 and 50000
+
+        return max_batch_size
+    
     def expand_multiple_queries(self, query_list, use_synonyms=False):
         results = {}
         for q in query_list:
@@ -95,15 +126,39 @@ class preprocess_sys():
         expanded_terms = [query]
         related_words = {}
 
-        # Get similar words for each term with context
-        for id, word in enumerate(words):
-            if word in self.word2vec:
-                related_words[word]=[]
-                similar = self.word2vec.most_similar(word, topn=topn)
-                for w, score in similar:
-                    tmp_w = w
-                    if score >= min_similarity and self.preprocess_text(tmp_w) != preprocessed_ori_words[id] :
-                        related_words[word].append(w)
+        if self.device == "cuda":  # Check if device is CUDA
+            print("Using GPU for expansion with batch processing")
+            batch_size = self._set_batch_size()  # To reduce memory size 
+
+            for id, word in enumerate(words):
+                if word in self.vocab_words:
+                    word_idx = self.vocab_words.index(word)
+                    word_vec = self.word2vec_vectors[word_idx].unsqueeze(0).to(self.device)
+                    related_words[word] = []
+
+                    # Process vectors in batches
+                    for i in range(0, len(self.vocab_words), batch_size):
+                        batch_vectors = self.word2vec_vectors[i:i + batch_size].to(self.device)
+                        similarities = torch.cosine_similarity(word_vec, batch_vectors)
+                        scores, indices = torch.topk(similarities, k=min(topn + 1, batch_vectors.shape[0]), largest=True)
+
+                        for score, idx in zip(scores[1:], indices[1:]):  # Skip self
+                            w = self.vocab_words[i + idx]
+                            if score >= min_similarity and self.preprocess_text(w) != preprocessed_ori_words[id] and w != word:
+                                related_words[word].append(w)
+                        del batch_vectors  # Free GPU memory
+                        torch.cuda.empty_cache()  # Clear cache
+        else:
+            print("Using CPU for expansion")
+            # Get similar words for each term with context
+            for id, word in enumerate(words):
+                if word in self.word2vec:
+                    related_words[word]=[]
+                    similar = self.word2vec.most_similar(word, topn=topn)
+                    for w, score in similar:
+                        tmp_w = w
+                        if score >= min_similarity and self.preprocess_text(tmp_w) != preprocessed_ori_words[id] :
+                            related_words[word].append(w)
 
         # Generate expansions with balanced representation
         if len(words) > 1:

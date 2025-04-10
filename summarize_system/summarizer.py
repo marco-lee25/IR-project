@@ -4,8 +4,8 @@ import torch
 from transformers import BartTokenizer, BartForConditionalGeneration
 
 class BartSummarizer:
-    def __init__(self):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def __init__(self, device):
+        self.device = device
         self.tokenizer = BartTokenizer.from_pretrained('facebook/bart-large-cnn')
         self.model = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn').to(self.device)
 
