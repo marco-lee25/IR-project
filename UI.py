@@ -45,6 +45,7 @@ class SearchUI:
         self.exp_syn_var = tk.BooleanVar(value=False)
         self.exp_sem_var = tk.BooleanVar(value=False)
         self.use_summary_var = tk.BooleanVar(value=False)
+        self.sem_method_var = tk.StringVar(value="GenAI (1)")  # Default to GenAI (1)
 
         tk.Checkbutton(self.root, text="Use BM25", variable=self.use_bm25_var).grid(row=1, column=0, padx=5, pady=5, sticky="w")
         tk.Checkbutton(self.root, text="Use BERT", variable=self.use_bert_var).grid(row=1, column=1, padx=5, pady=5, sticky="w")
@@ -52,42 +53,49 @@ class SearchUI:
         
         self.synonyms_check = tk.Checkbutton(self.root, text="Synonyms", variable=self.exp_syn_var, state="disabled")
         self.synonyms_check.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-        self.semantic_check = tk.Checkbutton(self.root, text="Semantic", variable=self.exp_sem_var, state="disabled")
+        self.semantic_check = tk.Checkbutton(self.root, text="Semantic", variable=self.exp_sem_var, state="disabled", command=self.toggle_semantic_method)
         self.semantic_check.grid(row=2, column=2, padx=5, pady=5, sticky="w")
 
-        tk.Checkbutton(self.root, text="Use Summarization", variable=self.use_summary_var).grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        # Semantic method selection (dropdown)
+        tk.Label(self.root, text="Semantic Method:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        self.sem_method_menu = ttk.Combobox(self.root, textvariable=self.sem_method_var, state="disabled")
+        self.sem_method_menu['values'] = ("Database-vector (0)", "glove-word2vec (1)", "GenAI (2)")
+        self.sem_method_menu.current(0)  # Default to GenAI
+        self.sem_method_menu.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
+
+        tk.Checkbutton(self.root, text="Use Summarization", variable=self.use_summary_var).grid(row=4, column=0, padx=5, pady=5, sticky="w")
 
         # Top N selection
-        tk.Label(self.root, text="Top N Results:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        tk.Label(self.root, text="Top N Results:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
         self.top_n_var = tk.IntVar(value=5)
         top_n_options = [1, 3, 5, 10, 20]
         self.top_n_menu = ttk.Combobox(self.root, textvariable=self.top_n_var, values=top_n_options, state="readonly")
-        self.top_n_menu.grid(row=4, column=1, padx=5, pady=5, sticky="ew")
+        self.top_n_menu.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
 
         # BM25 and Vector weights
-        tk.Label(self.root, text="BM25 Weight:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
+        tk.Label(self.root, text="BM25 Weight:").grid(row=6, column=0, padx=5, pady=5, sticky="w")
         self.bm25_weight_var = tk.DoubleVar(value=0.5)
-        tk.Entry(self.root, textvariable=self.bm25_weight_var, width=10).grid(row=5, column=1, padx=5, pady=5, sticky="ew")
+        tk.Entry(self.root, textvariable=self.bm25_weight_var, width=10).grid(row=6, column=1, padx=5, pady=5, sticky="ew")
 
-        tk.Label(self.root, text="Vector Weight:").grid(row=6, column=0, padx=5, pady=5, sticky="w")
+        tk.Label(self.root, text="Vector Weight:").grid(row=7, column=0, padx=5, pady=5, sticky="w")
         self.vector_weight_var = tk.DoubleVar(value=0.5)
-        tk.Entry(self.root, textvariable=self.vector_weight_var, width=10).grid(row=6, column=1, padx=5, pady=5, sticky="ew")
+        tk.Entry(self.root, textvariable=self.vector_weight_var, width=10).grid(row=7, column=1, padx=5, pady=5, sticky="ew")
 
         # Search button
-        tk.Button(self.root, text="Search", command=self.perform_search).grid(row=7, column=0, columnspan=3, pady=10, sticky="ew")
+        tk.Button(self.root, text="Search", command=self.perform_search).grid(row=8, column=0, columnspan=3, pady=10, sticky="ew")
 
         # Results display
-        tk.Label(self.root, text="Results:").grid(row=8, column=0, padx=5, pady=5, sticky="w")
+        tk.Label(self.root, text="Results:").grid(row=9, column=0, padx=5, pady=5, sticky="w")
         self.results_text = tk.Text(self.root, wrap="word")  # Wrap text for readability
-        self.results_text.grid(row=9, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
+        self.results_text.grid(row=10, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
 
         # Add scrollbar
         scrollbar = tk.Scrollbar(self.root, command=self.results_text.yview)
-        scrollbar.grid(row=9, column=3, sticky="ns")
+        scrollbar.grid(row=10, column=3, sticky="ns")
         self.results_text.config(yscrollcommand=scrollbar.set)
 
         # Configure grid weights
-        self.root.grid_rowconfigure(9, weight=1)
+        self.root.grid_rowconfigure(10, weight=1)
         self.root.grid_columnconfigure(1, weight=1)
         self.root.grid_columnconfigure(2, weight=1)
 
@@ -98,6 +106,13 @@ class SearchUI:
         if not self.use_expansion_var.get():
             self.exp_syn_var.set(False)
             self.exp_sem_var.set(False)
+            self.sem_method_menu.config(state="disabled")
+
+    def toggle_semantic_method(self):
+        state = "normal" if self.exp_sem_var.get() else "disabled"
+        self.sem_method_menu.config(state=state)
+        if not self.exp_sem_var.get():
+            self.sem_method_var.set("GenAI (1)")  # Reset to default (GenAI)
 
     def compare_rankings(self, results_hybrid, results_bm25, results_bert, ranker):
         """Display ranking comparison in the UI."""
@@ -164,12 +179,15 @@ class SearchUI:
         use_expansion = self.use_expansion_var.get()
         exp_syn = self.exp_syn_var.get()
         exp_sem = self.exp_sem_var.get()
+        # Extract the integer from the selected semantic method string (e.g., "GenAI (1)" -> 1)
+        sem_method_str = self.sem_method_var.get()
+        sem_method = int(sem_method_str.split("(")[1].strip(")"))
         top_n = self.top_n_var.get()
         use_summary = self.use_summary_var.get()
         bm25_weight = self.bm25_weight_var.get()
         vector_weight = self.vector_weight_var.get()
 
-        self.summarizer = BartSummarizer(self.device) if use_summary else None
+        self.summarizer = BartSummarizer("cpu") if use_summary else None
 
         if use_expansion and not (exp_syn or exp_sem):
             self.results_text.insert(tk.END, "Please specify an expansion method (Synonyms or Semantic).\n")
@@ -178,7 +196,7 @@ class SearchUI:
         try:
             # Process query with expansion if enabled
             if use_expansion:
-                processed_query = self.preprocess.process_query(query, use_semantic=exp_sem, use_synonyms=exp_syn)
+                processed_query = self.preprocess.process_query(query, use_semantic=exp_sem, use_synonyms=exp_syn, sem_method=sem_method)
                 self.results_text.insert(tk.END, f"Expanded Query: {processed_query}\n\n")
                 if not processed_query:
                     self.results_text.insert(tk.END, "Query expansion returned no results.\n")

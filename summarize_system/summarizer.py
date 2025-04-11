@@ -10,6 +10,7 @@ class BartSummarizer:
         self.model = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn').to(self.device)
 
     def summarize(self, text, max_length=130, min_length=30):
+        torch.cuda.empty_cache()
         if not text.strip():
             return "No content to summarize."
         inputs = self.tokenizer([text], max_length=1024, return_tensors='pt', truncation=True).to(self.device)

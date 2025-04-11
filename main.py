@@ -1,248 +1,225 @@
-import tkinter as tk
-from tkinter import ttk
 from elasticsearch import Elasticsearch
 from database.process_data import build_index_system
 import search_engine
+import json
+import argparse
 from preprocess_system.preprocess import preprocess_sys
 from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
-from scibert.model import scibert_model
 import torch
-import textwrap
+from scibert.model import scibert_model
 
-class SearchUI:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Academic Paper Search")
-        self.root.geometry("800x600")
-
-        # Allow resizing
-        self.root.grid_rowconfigure(9, weight=1)
-        self.root.grid_columnconfigure(1, weight=1)
-
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = scibert_model(self.device)
-
-        print("Initializing preprocess system...")
-        self.preprocess = preprocess_sys(self.model, self.device)
-
-        print("Initializing search engine...")
-        self.se = search_engine.engine(self.model)
-
-        self.summarizer = None
-
-        self.create_widgets()
-
-    def create_widgets(self):
-        tk.Label(self.root, text="Search Query:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.query_entry = tk.Entry(self.root)
-        self.query_entry.grid(row=0, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
-
-        self.use_bm25_var = tk.BooleanVar(value=True)
-        self.use_bert_var = tk.BooleanVar(value=False)
-        self.use_expansion_var = tk.BooleanVar(value=False)
-        self.exp_syn_var = tk.BooleanVar(value=False)
-        self.exp_sem_var = tk.BooleanVar(value=False)
-        self.use_summary_var = tk.BooleanVar(value=False)
-
-        tk.Checkbutton(self.root, text="Use BM25", variable=self.use_bm25_var).grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        tk.Checkbutton(self.root, text="Use BERT", variable=self.use_bert_var).grid(row=1, column=1, padx=5, pady=5, sticky="w")
-        tk.Checkbutton(self.root, text="Use Expansion", variable=self.use_expansion_var, command=self.toggle_expansion).grid(row=2, column=0, padx=5, pady=5, sticky="w")
+def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
+    print(f"Query: {query}")
+    print(f"BM25: {use_bm25}, Vector: {use_bert}")
+    
+    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
+    ranker = HybridRanker(bm25_weight=args.bm25_weight, vector_weight=args.vector_weight)
+    # Apply hybrid ranking if both scores exist
+    if all('bm25_score' in doc and 'vector_score' in doc for doc in results) and ranker:
+        results = ranker.rank_documents(results)
+    
+    print("="*50)
+    for i, doc in enumerate(results[:top_n], 1):
+        output = [
+            f"RESULT {i}:",
+            f"Title: {doc['title']}",
+            f"Abstract: {doc['abstract'][:200]}...",
+        ]
         
-        self.synonyms_check = tk.Checkbutton(self.root, text="Synonyms", variable=self.exp_syn_var, state="disabled")
-        self.synonyms_check.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-        self.semantic_check = tk.Checkbutton(self.root, text="Semantic", variable=self.exp_sem_var, state="disabled")
-        self.semantic_check.grid(row=2, column=2, padx=5, pady=5, sticky="w")
+        if 'combined_score' in doc:
+            output.extend([
+                f"BM25: {doc['bm25_score']:.3f} (norm: {doc['normalized_bm25']:.3f})",
+                f"Vector: {doc['vector_score']:.3f} (norm: {doc['normalized_vector']:.3f})",
+                f"Combined: {doc['combined_score']:.3f}"
+            ])
+        else:
+            if use_bm25 == True and use_bert ==False:
+                output.append(f"BM25: {doc['score']:.3f}")
+            if use_bm25 == False and use_bert ==True:
+                output.append(f"Vector: {doc['score']:.3f}")
+            
+        if summarizer:
+            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
+            
+        print("\n".join(output) + "\n" + "-"*50)
+# =================================================
 
-        tk.Checkbutton(self.root, text="Use Summarization", variable=self.use_summary_var).grid(row=3, column=0, padx=5, pady=5, sticky="w")
+def compare_rankings(results_hybrid, results_bm25, results_bert, ranker):
+    """Show difference between all three ranking methods"""
+    # Create independent copies for each ranking method
+    bm25_only = [doc.copy() for doc in results_bm25]
+    vector_only = [doc.copy() for doc in results_bert]
+    hybrid = [doc.copy() for doc in results_hybrid]
 
-        tk.Label(self.root, text="Top N Results:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
-        self.top_n_var = tk.IntVar(value=5)
-        top_n_options = [1, 3, 5, 10, 20]
-        self.top_n_menu = ttk.Combobox(self.root, textvariable=self.top_n_var, values=top_n_options, state="readonly")
-        self.top_n_menu.grid(row=4, column=1, padx=5, pady=5, sticky="ew")
+    # Apply each ranking method separately
+    bm25_sorted = sorted(bm25_only, key=lambda x: x['score'], reverse=True)
+    vector_sorted = sorted(vector_only, key=lambda x: x['score'], reverse=True)
+    hybrid_sorted = ranker.rank_documents(results_bm25, results_bert)
 
-        tk.Label(self.root, text="BM25 Weight:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
-        self.bm25_weight_var = tk.DoubleVar(value=0.5)
-        tk.Entry(self.root, textvariable=self.bm25_weight_var, width=10).grid(row=5, column=1, padx=5, pady=5, sticky="ew")
+    print("\n=== RANKING COMPARISON ===")
+    print(f"{'BM25 Order':<40} | {'Vector Order':<40} | {'Hybrid Order':<40}")
+    print("-" * 120)
+    
+    for i in range(min(5, len(bm25_sorted))):
+        bm25_title = bm25_sorted[i]['title'][:35] + (bm25_sorted[i]['title'][35:] and '...')
+        vector_title = vector_sorted[i]['title'][:35] + (vector_sorted[i]['title'][35:] and '...')
+        hybrid_title = hybrid_sorted[i]['title'][:35] + (hybrid_sorted[i]['title'][35:] and '...')
+        
+        print(f"{bm25_title:<40} | {vector_title:<40} | {hybrid_title:<40} ")
+        print(f"BM25: {bm25_sorted[i]['score']:.2f} | "
+              f"Vector: {vector_sorted[i]['score']:.2f} | "
+              f"Combined: {hybrid_sorted[i].get('combined_score', 0):.2f}"
+            )
+        print("-" * 120)
 
-        tk.Label(self.root, text="Vector Weight:").grid(row=6, column=0, padx=5, pady=5, sticky="w")
-        self.vector_weight_var = tk.DoubleVar(value=0.5)
-        tk.Entry(self.root, textvariable=self.vector_weight_var, width=10).grid(row=6, column=1, padx=5, pady=5, sticky="ew")
+def process_input_compare_ranking(se, query, use_bm25=True, use_bert=True, top_n=5, summarizer=None):
+    print(f"Query: {query}")
+    print(f"BM25: {use_bm25}, Vector: {use_bert}")
+    
+    # Run search and get raw results
+    results_hybrid = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
+    results_bm25 = se.search(query, use_bm25=use_bm25, use_bert=False, top_n=top_n)
+    results_bert = se.search(query, use_bm25=False, use_bert=use_bert, top_n=top_n)
+    
+    # Only compare if both scores are available
+    if use_bm25 and use_bert:
+        ranker = HybridRanker(bm25_weight=args.bm25_weight, vector_weight=args.vector_weight)
+        
+        # Get final hybrid ranked results
+        ranked_results = ranker.rank_documents(results_bm25, results_bert)
+        compare_rankings(ranked_results, results_bm25, results_bert, ranker)
+        # print(f"ranked results: {ranked_results}")
+        display_results(ranked_results, top_n, summarizer)
+    else:
+        display_results(results_hybrid, top_n, summarizer)
 
-        tk.Button(self.root, text="Search", command=self.perform_search).grid(row=7, column=0, columnspan=3, pady=10, sticky="ew")
+def display_results(results, top_n, summarizer, ranking_method="Hybrid"):
+    """Display formatted results with ranking method context"""
+    print(f"\n=== {ranking_method.upper()} RANKING RESULTS ===")
+    
+    for i, doc in enumerate(results[:top_n], 1):
+        # Base output with title and abstract
+        output = [
+            f"Rank {i}: {doc['title']}",
+            f"Abstract: {doc['abstract'][:150]}{'...' if len(doc['abstract']) > 150 else ''}"
+        ]
+        
+        # Score information
+        score_info = []
+        if 'bm25_score' in doc:
+            score_info.append(f"BM25: {doc['bm25_score']:.2f}")
+        if 'vector_score' in doc:
+            score_info.append(f"Vector: {doc['vector_score']:.2f}")
+        if 'combined_score' in doc:
+            score_info.append(f"Combined: {doc['combined_score']:.2f}")
+            if 'normalized_bm25' in doc and 'normalized_vector' in doc:
+                score_info.append(
+                    f"(Norm: BM25={doc['normalized_bm25']:.2f}, "
+                    f"Vector={doc['normalized_vector']:.2f})"
+                )
+        
+        if score_info:
+            output.append("Scores: " + " | ".join(score_info))
+        
+        # Summary if enabled
+        if summarizer:
+            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
+        
+        print("\n".join(output))
+        print("=" * 80)
 
-        tk.Label(self.root, text="Results:").grid(row=8, column=0, padx=5, pady=5, sticky="w")
+# =================================================
 
-        # Create a frame for the text widget and scrollbars
-        text_frame = tk.Frame(self.root)
-        text_frame.grid(row=9, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
-        text_frame.grid_rowconfigure(0, weight=1)
-        text_frame.grid_columnconfigure(0, weight=1)
 
-        # Text widget with wrapping and monospaced font
-        self.results_text = tk.Text(text_frame, wrap="word", font=("Courier", 10))
-        self.results_text.grid(row=0, column=0, sticky="nsew")
+def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
+    print(f"Query: {query}")
+    print(f"BM25: {use_bm25}, Vector: {use_bert}")
+    
+    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
+    
+    print("="*50)
+    for i, doc in enumerate(results[:top_n], 1):
+        output = [
+            f"RESULT {i}:",
+            f"Title: {doc['title']}",
+            f"Abstract: {doc['abstract'][:200]}...",
+        ]
+        
+        if 'combined_score' in doc:
+            output.extend([
+                f"BM25: {doc['bm25_score']:.3f} (norm: {doc['normalized_bm25']:.3f})",
+                f"Vector: {doc['vector_score']:.3f} (norm: {doc['normalized_vector']:.3f})",
+                f"Combined: {doc['combined_score']:.3f}"
+            ])
+        else:
+            if use_bm25 == True and use_bert ==False:
+                output.append(f"BM25: {doc['score']:.3f}")
+            if use_bm25 == False and use_bert ==True:
+                output.append(f"Vector: {doc['score']:.3f}")
+            
+        if summarizer:
+            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
+            
+        print("\n".join(output) + "\n" + "-"*50)
 
-        # Vertical scrollbar
-        v_scrollbar = tk.Scrollbar(text_frame, orient="vertical", command=self.results_text.yview)
-        v_scrollbar.grid(row=0, column=1, sticky="ns")
-        self.results_text.config(yscrollcommand=v_scrollbar.set)
-
-        # Horizontal scrollbar
-        h_scrollbar = tk.Scrollbar(text_frame, orient="horizontal", command=self.results_text.xview)
-        h_scrollbar.grid(row=1, column=0, sticky="ew")
-        self.results_text.config(xscrollcommand=h_scrollbar.set)
-
-        self.root.grid_rowconfigure(9, weight=1)
-        self.root.grid_columnconfigure(1, weight=1)
-        self.root.grid_columnconfigure(2, weight=1)
-
-    def toggle_expansion(self):
-        state = "normal" if self.use_expansion_var.get() else "disabled"
-        self.synonyms_check.config(state=state)
-        self.semantic_check.config(state=state)
-        if not self.use_expansion_var.get():
-            self.exp_syn_var.set(False)
-            self.exp_sem_var.set(False)
-
-    def wrap_text(self, text, width=40):
-        """Wrap text to a specified width, returning a list of lines."""
-        return textwrap.wrap(text, width=width)
-
-    def compare_rankings(self, results_hybrid, results_bm25, results_bert, ranker):
-        """Display ranking comparison with wrapped titles and aligned scores."""
-        output = ["=== RANKING COMPARISON ===\n"]
-        column_width = 40
-        separator_width = column_width * 3 + 10  # 3 columns + 2 separators (" | ")
-        output.append(f"{'BM25 Order':<{column_width}} | {'Vector Order':<{column_width}} | {'Hybrid Order':<{column_width}}\n")
-        output.append("-" * separator_width + "\n")
-
-        bm25_sorted = sorted(results_bm25, key=lambda x: x['score'], reverse=True)
-        vector_sorted = sorted(results_bert, key=lambda x: x['score'], reverse=True)
-        hybrid_sorted = ranker.rank_documents(results_bm25, results_bert)
-
-        for i in range(min(5, len(bm25_sorted))):
-            # Wrap each title
-            bm25_lines = self.wrap_text(bm25_sorted[i]['title'], width=column_width)
-            vector_lines = self.wrap_text(vector_sorted[i]['title'], width=column_width)
-            hybrid_lines = self.wrap_text(hybrid_sorted[i]['title'], width=column_width)
-
-            # Determine the maximum number of lines needed
-            max_lines = max(len(bm25_lines), len(vector_lines), len(hybrid_lines))
-
-            # Pad shorter titles with empty lines to align scores
-            bm25_lines.extend([''] * (max_lines - len(bm25_lines)))
-            vector_lines.extend([''] * (max_lines - len(vector_lines)))
-            hybrid_lines.extend([''] * (max_lines - len(hybrid_lines)))
-
-            # Display each line of the titles
-            for j in range(max_lines):
-                output.append(f"{bm25_lines[j]:<{column_width}} | {vector_lines[j]:<{column_width}} | {hybrid_lines[j]:<{column_width}}\n")
-
-            # Align scores under their respective columns
-            bm25_score = f"BM25: {bm25_sorted[i]['score']:.2f}"
-            vector_score = f"Vector: {vector_sorted[i]['score']:.2f}"
-            combined_score = f"Combined: {hybrid_sorted[i].get('combined_score', 0):.2f}"
-            output.append(f"{bm25_score:<{column_width}} | {vector_score:<{column_width}} | {combined_score:<{column_width}}\n")
-
-            output.append("-" * separator_width + "\n")
-
-        return "".join(output)
-
-    def display_results(self, results, top_n, summarizer):
-        """Mirror main.py's display_results with wrapped titles."""
-        output = [f"\n=== HYBRID RANKING RESULTS ===\n"]
-
-        for i, doc in enumerate(results[:top_n], 1):
-            # Wrap the title
-            wrapped_title = "\n".join(self.wrap_text(doc['title'], width=80))
-            output.append(f"Rank {i}: {wrapped_title}\n")
-            output.append(f"Abstract: {doc['abstract'][:150]}{'...' if len(doc['abstract']) > 150 else ''}\n")
-
-            score_info = []
-            if 'bm25_score' in doc:
-                score_info.append(f"BM25: {doc['bm25_score']:.2f}")
-            if 'vector_score' in doc:
-                score_info.append(f"Vector: {doc['vector_score']:.2f}")
-            if 'combined_score' in doc:
-                score_info.append(f"Combined: {doc['combined_score']:.2f}")
-                if 'normalized_bm25' in doc and 'normalized_vector' in doc:
-                    score_info.append(f"(Norm: BM25={doc['normalized_bm25']:.2f}, Vector={doc['normalized_vector']:.2f})")
-
-            if score_info:
-                output.append("Scores: " + " | ".join(score_info) + "\n")
-
-            if summarizer:
-                output.append(f"Summary: {summarizer.summarize(doc['abstract'])}\n")
-
-            output.append("=" * 80 + "\n")
-
-        return "".join(output)
-
-    def perform_search(self):
-        self.results_text.delete(1.0, tk.END)
-
-        query = self.query_entry.get().strip()
-        if not query:
-            self.results_text.insert(tk.END, "Please enter a query.\n")
-            return
-
-        use_bm25 = self.use_bm25_var.get()
-        use_bert = self.use_bert_var.get()
-        use_expansion = self.use_expansion_var.get()
-        exp_syn = self.exp_syn_var.get()
-        exp_sem = self.exp_sem_var.get()
-        top_n = self.top_n_var.get()
-        use_summary = self.use_summary_var.get()
-        bm25_weight = self.bm25_weight_var.get()
-        vector_weight = self.vector_weight_var.get()
-
-        self.summarizer = BartSummarizer(self.device) if use_summary else None
-
-        if use_expansion and not (exp_syn or exp_sem):
-            self.results_text.insert(tk.END, "Please specify an expansion method (Synonyms or Semantic).\n")
-            return
-
-        try:
-            self.results_text.insert(tk.END, f"Query: {query}\n")
-            self.results_text.insert(tk.END, f"BM25: {use_bm25}, BERT: {use_bert}\n")
-
-            if use_expansion:
-                processed_query = self.preprocess.process_query(query, use_semantic=exp_sem, use_synonyms=exp_syn)
-                self.results_text.insert(tk.END, f"Expanded Query: {processed_query}\n\n")
-                if not processed_query:
-                    self.results_text.insert(tk.END, "Query expansion returned no results.\n")
-                    return
-            else:
-                processed_query = [query]
-
-            results_hybrid = self.se.search(processed_query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
-
-            if not results_hybrid:
-                self.results_text.insert(tk.END, "No results found.\n")
-                return
-
-            if use_bm25 and use_bert:
-                results_bm25 = self.se.search(processed_query, use_bm25=True, use_bert=False, top_n=top_n)
-                results_bert = self.se.search(processed_query, use_bm25=False, use_bert=True, top_n=top_n)
-                ranker = HybridRanker(bm25_weight=bm25_weight, vector_weight=vector_weight)
-                ranked_results = ranker.rank_documents(results_bm25, results_bert)
-
-                comparison_text = self.compare_rankings(ranked_results, results_bm25, results_bert, ranker)
-                self.results_text.insert(tk.END, comparison_text)
-
-                detailed_text = self.display_results(ranked_results, top_n, self.summarizer)
-                self.results_text.insert(tk.END, detailed_text)
-            else:
-                detailed_text = self.display_results(results_hybrid, top_n, self.summarizer)
-                self.results_text.insert(tk.END, detailed_text)
-
-        except Exception as e:
-            self.results_text.insert(tk.END, f"Error during search: {str(e)}\n")
-            raise
-
+# Example usage 
+# No expansion
+# python main.py "face identify" --use_bm25 --use_bert
+# With expansion on synoyms
+# python main.py "face identify" --use_bm25 --use_bert --use_expansion --exp_syn
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = SearchUI(root)
-    root.mainloop()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = scibert_model(device)
+
+    print("Initalizing preprocess system...")
+    preprocess = preprocess_sys(model, device)
+
+    print("Initalizing search engine...")
+    se = search_engine.engine(model)
+
+    parser = argparse.ArgumentParser(description="Run the search engine with parameters.")
+
+    # Positional argument: Query
+    parser.add_argument("query", type=str, help="Search query")
+
+    # Optional flags
+    parser.add_argument("--use_bm25", action="store_true", help="Enable BM25-based search")
+    parser.add_argument("--use_bert", action="store_true", help="Enable BERT-based semantic search")
+    parser.add_argument("--use_expansion", action="store_true", help="Query expansion")
+    parser.add_argument("--exp_syn", action="store_true", help="Apply synoyms expansion")
+    parser.add_argument("--exp_sem", action="store_true", help="Query semantic expansion")
+    parser.add_argument("--top_n", type=int,default=10, help='Max number of documents return')
+    parser.add_argument("--use_summary", action="store_true", help='Enable BART summarization')
+    parser.add_argument("--bm25_weight", type=float, default=0.5, 
+                   help="Weight for BM25 in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--vector_weight", type=float, default=0.5,
+                   help="Weight for vector search in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--sem_method", type=int, default=1,
+               help=" 0:Semantic expansion on GoogleNews-vectors\n 1: Expansion using GenAI")
+    
+    args = parser.parse_args()
+
+    summarizer = BartSummarizer(device) if args.use_summary else None 
+
+    if args.use_expansion:
+        if not(args.exp_syn) and not(args.exp_sem):
+            print("Please specify expansion method by --exp_syn & --exp_sem")
+            exit()
+        processed_query = preprocess.process_query(args.query,  use_semantic=args.exp_sem, use_synonyms=args.exp_syn, sem_method=args.sem_method)
+        print(f"Query expansion result : {processed_query}")
+
+        # TODO 
+        # Handle the expaned query, for example combining into single string or separate to different query to search.
+        # processed_query = ' '.join(processed_query)
+        # print(processed_query)
+        # exit()
+        
+        # Run main function with parsed arguments
+    #     process_input(se, processed_query, args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)
+    # else:
+    #     process_input(se, [args.query], args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)
+
+        process_input_compare_ranking(se, processed_query, args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)
+    else:
+        process_input_compare_ranking(se, [args.query], args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)
