@@ -7,7 +7,7 @@ from preprocess_system.preprocess import preprocess_sys
 from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
 import torch
-from scibert.model import scibert_model
+from models.model import scibert_model
 
 def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
     print(f"Query: {query}")
@@ -131,7 +131,6 @@ def display_results(results, top_n, summarizer, ranking_method="Hybrid"):
 
 # =================================================
 
-
 def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
     print(f"Query: {query}")
     print(f"BM25: {use_bm25}, Vector: {use_bert}")
@@ -181,7 +180,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the search engine with parameters.")
 
     # Positional argument: Query
-    parser.add_argument("query", type=str, help="Search query")
+    parser.add_argument("query", type=str, help="Search query") 
 
     # Optional flags
     parser.add_argument("--use_bm25", action="store_true", help="Enable BM25-based search")

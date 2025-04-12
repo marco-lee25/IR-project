@@ -21,7 +21,7 @@ import re
 logging.set_verbosity_error()
 
 class preprocess_sys():
-    def __init__(self, model, device, json_file="./database/data/arxiv_index_data.json", output_file="./database/data/sentence_corpus.pkl"):
+    def __init__(self, model, deepseek_model, deepseek_tokenizer, device, json_file="./database/data/arxiv_index_data.json", output_file="./database/data/sentence_corpus.pkl"):
         self.device = device
         self.index_data_path = json_file
         self.corpus_path = output_file
@@ -39,11 +39,14 @@ class preprocess_sys():
         self.extractor = YAKE()
         self.model = model
 
-        # Load DeepSeek-R1-Distill-Qwen-1.5B model and tokenizer
-        self.deepseek_model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-        self.deepseek_tokenizer = AutoTokenizer.from_pretrained(self.deepseek_model_name)
-        self.deepseek_model = AutoModelForCausalLM.from_pretrained(self.deepseek_model_name).to(self.device)
-        self.deepseek_model.eval()
+        # # Load DeepSeek-R1-Distill-Qwen-1.5B model and tokenizer
+        # self.deepseek_model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+        # self.deepseek_tokenizer = AutoTokenizer.from_pretrained(self.deepseek_model_name)
+        # self.deepseek_model = AutoModelForCausalLM.from_pretrained(self.deepseek_model_name).to(self.device)
+        # self.deepseek_model.eval()
+
+        self.deepseek_model = deepseek_model
+        self.deepseek_tokenizer = deepseek_tokenizer
 
         # # Load Gemma-2-2B model and tokenizer
         # self.gemma_model_name = "google/gemma-2-2b"
@@ -107,7 +110,7 @@ class preprocess_sys():
             self.corpus_embeddings = semantic_data["embeddings"]
             self.corpus_doc_ids = semantic_data["doc_ids"]
 
-    def expand_semantic_deepseek(self, query, top_k=None):    
+    def expand_semantic_deepseek(self, query, top_k=None): 
         """Expand query using DeepSeek-R1-Distill-Qwen-1.5B generative model."""
         if not top_k:
             top_k = self.semantic_topk  # e.g., 10
@@ -192,7 +195,6 @@ class preprocess_sys():
             # Combine while removing duplicates
             expanded_terms = list(dict.fromkeys([query] + terms_list[:top_k]))
 
-        torch.cuda.empty_cache()
         return expanded_terms
     
     def expand_semantic_gemma(self, query, top_k=None):
