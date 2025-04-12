@@ -7,7 +7,7 @@ from preprocess_system.preprocess import preprocess_sys
 from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
 import torch
-from models.model import scibert_model
+from models.model import scibert_model, deepseek_model
 
 def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
     print(f"Query: {query}")
@@ -169,10 +169,13 @@ def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, sum
 # python main.py "face identify" --use_bm25 --use_bert --use_expansion --exp_syn
 if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    deepseek_model, deepseek_tokenizer = deepseek_model(device).get_model()
+    summarizer = BartSummarizer("cpu")
+    
     model = scibert_model(device)
 
     print("Initalizing preprocess system...")
-    preprocess = preprocess_sys(model, device)
+    preprocess = preprocess_sys(model, deepseek_model, deepseek_tokenizer, device)
 
     print("Initalizing search engine...")
     se = search_engine.engine(model)
@@ -199,7 +202,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    summarizer = BartSummarizer(device) if args.use_summary else None 
+    # summarizer = BartSummarizer(device) if args.use_summary else None 
 
     if args.use_expansion:
         if not(args.exp_syn) and not(args.exp_sem):
