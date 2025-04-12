@@ -5,6 +5,15 @@
                 "abstract": {
                     "type": "text"
                 },
+                "category": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword",
+                            "ignore_above": 256
+                        }
+                    }
+                },
                 "paragraphs": {
                     "type": "nested",
                     "properties": {

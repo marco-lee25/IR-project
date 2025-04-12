@@ -23,8 +23,8 @@ import time
 
 from nltk.tokenize import word_tokenize, PunktSentenceTokenizer
 
-# topics = ['cs.AI', 'cs.CV', 'cs.IR', 'cs.LG', 'cs.CL']
-topics = ['cs.AI']
+topics = ['cs.AI', 'cs.CV', 'cs.IR', 'cs.LG', 'cs.CL']
+# topics = ['cs.AI']
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
