@@ -1,8 +1,3 @@
-# TODO 
-1. Ranking system
-2. Refine semantic search and query expansion
-3. Summarization on result
-
 # IR Project - Search Engine 
 
 ## Environment setup
@@ -27,15 +22,13 @@ pip install -r requirement.txt
 ```
 
 ## The elasticsearch server docker
-This project uses **Elasticsearch** for indexing and retrieving documents. The preprocessed indices are stored in `./database/data/`:
+This project uses **Elasticsearch** for indexing and retrieving documents. The processed indices are stored in `./database/data/`:
 
-**Preprocessed Elasticsearch Indices**:
+**Elasticsearch Indices strcuture**:
 - `arxiv_index_data.json`
 - `arxiv_index_mapping.json`
 - `arxiv_index_settings.json`
-  
-### Preprocessed indices information
-When building the docker, the indices will be restore using the script ` /database/import_index.py `. There are currently in total 2000 documents, with topics named `cs.AI` from https://www.kaggle.com/datasets/Cornell-University/arxiv
+
 
 ### Setup docker for elasticsearch server
 ```bash
@@ -43,8 +36,8 @@ When building the docker, the indices will be restore using the script ` /databa
   docker run -d --name ir_project -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 ir-project_v8
   
 ```
-### Rebuild the indexing system
-If you want to rebuild the indexing system with different name, number of documents, or specify index method, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
+### Build the indexing system
+If you want to build the indexing system with, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
 ```python
 if __name__=="__main__":
     index_name = "arxiv_index"
@@ -61,7 +54,12 @@ Output :
 ```bash
 Initalizing preprocess system...
 Loading GoogleNews-vectors-negative300 embeddings...
+Initalizing preprocess system...
+Loading GoogleNews-vectors-negative300 embeddings...
 Initalizing search engine...
+Performing semantic query expansion using GoogleNews-vectors-negative300 on GPU
+Using CPU for expansion with GoogleNews embeddings
+Expanded terms before limit: ['face indentify', 'face locate', 'face pinpoint', 'face uncover', 'face indentified', 'face define', 'face detect', 'face classify', 'face analyze']
 Performing semantic query expansion using GoogleNews-vectors-negative300 on GPU
 Using CPU for expansion with GoogleNews embeddings
 Expanded terms before limit: ['face indentify', 'face locate', 'face pinpoint', 'face uncover', 'face indentified', 'face define', 'face detect', 'face classify', 'face analyze']
@@ -77,7 +75,53 @@ Elasticsearch server is running.
 Index 'arxiv_index' exists with 1001 documents.
 Handling msearch case
 Bert only search
+Hybrid search with weighted query terms
 Elasticsearch server is running.
+Index 'arxiv_index' exists with 1001 documents.
+bm25 only search
+Elasticsearch server is running.
+Index 'arxiv_index' exists with 1001 documents.
+Handling msearch case
+Bert only search
+Elasticsearch server is running.
+Index 'arxiv_index' exists with 1001 documents.
+Handling msearch case
+
+=== RANKING COMPARISON ===
+BM25 Order                               | Vector Order                             | Hybrid Order                            
+------------------------------------------------------------------------------------------------------------------------
+Comparing Robustness of Pairwise an...   | Classification of artificial intell...   | Hybrid Tractable Classes of Binary ...   
+BM25: 16.61 | Vector: 2.56 | Combined: 0.78
+------------------------------------------------------------------------------------------------------------------------
+Emotion: Appraisal-coping model for...   | Detection and emergence                  | Multimodal Biometric Systems - Stud...   
+BM25: 10.37 | Vector: 2.52 | Combined: 0.77
+------------------------------------------------------------------------------------------------------------------------
+Emotion : mod\`ele d'appraisal-copi...   | Symmetry within Solutions                | Comparing Robustness of Pairwise an...   
+BM25: 10.17 | Vector: 2.52 | Combined: 0.74
+------------------------------------------------------------------------------------------------------------------------
+Hybrid Tractable Classes of Binary ...   | Multimodal Biometric Systems - Stud...   | When do Numbers Really Matter?           
+BM25: 10.01 | Vector: 2.51 | Combined: 0.66
+------------------------------------------------------------------------------------------------------------------------
+Multimodal Biometric Systems - Stud...   | A Directional Feature with Energy b...   | Back and Forth Between Rules and SE...   
+BM25: 9.97 | Vector: 2.50 | Combined: 0.65
+------------------------------------------------------------------------------------------------------------------------
+
+=== HYBRID RANKING RESULTS ===
+Rank 1: Hybrid Tractable Classes of Binary Quantified Constraint Satisfaction
+  Problems
+Abstract:   In this paper, we investigate the hybrid tractability of binary Quantified
+Constraint Satisfaction Problems (QCSPs). First, a basic tractable class ...
+Scores: BM25: 10.01 | Combined: 0.78 | (Norm: BM25=1.00, Vector=0.26)
+Summary:  In this paper, we investigate the hybrid tractability of binary Quantified-Constraint Satisfaction Problems (QCSPs) First, a basic tractable class of binary QCSPs is identified by using the broken-triangle property . Second, we break this restriction to allow that thatexistentially quantified variables can be shifted within or out of their blocks . Finally, we identify a more generalized tractable Class: the min-of-max extendable class .
+================================================================================
+Rank 2: Multimodal Biometric Systems - Study to Improve Accuracy and Performance
+Abstract:   Biometrics is the science and technology of measuring and analyzing
+biological data of human body, extracting a feature set from the acquired data,
+...
+Scores: BM25: 4.98 | Vector: 1.79 | Combined: 0.77 | (Norm: BM25=0.76, Vector=0.81)
+Summary:  Biometrics is the science and technology of measuring and analyzing the data of human body . Multimodal biometric systems perform better than unimodal systems and are popular even more complex also .
+================================================================================
+Rank 3: Comparing Robustness of Pairwise and Multiclass Neural-Network Systems
 Index 'arxiv_index' exists with 1001 documents.
 Handling msearch case
 
