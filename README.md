@@ -51,6 +51,9 @@ if __name__=="__main__":
     max_doc=2000
     build_index_system(index_name, use_bert, max_doc)
 ```
+## Downloading the Word2Vec data
+Before running the program, please download the  `GoogleNews-vectors-negative300.bin ` from https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?resourcekey=0-wjGZdNAUop6WykTtMip30g and place it in  `/preprocess_system `
+
 ## Search Example with UI
 ```bash
 python UI.py
