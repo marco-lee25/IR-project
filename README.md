@@ -1,4 +1,4 @@
-# IR Project - Search Engine 
+# IR Project - Search Engine - Grp 26
 
 ## Environment setup
 Before running the project, ensure you have **Conda** (for Python environment management) and **Docker** (to run the Elasticsearch server) installed.
@@ -37,7 +37,13 @@ This project uses **Elasticsearch** for indexing and retrieving documents. The p
   
 ```
 ### Build the indexing system
-If you want to build the indexing system with, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
+If you want to build the indexing system with, run the python `Rebuild.py ` 
+
+**Please make sure you have placed the 'kaggle.json' at './database/data/`**
+```bash
+python ./Rebuild.py
+```
+You can also edit `use_bert` and `max_doc` inside the file:
 ```python
 if __name__=="__main__":
     index_name = "arxiv_index"
@@ -45,10 +51,36 @@ if __name__=="__main__":
     max_doc=2000
     build_index_system(index_name, use_bert, max_doc)
 ```
-## Search Example
+## Downloading the Word2Vec data
+Before running the program, please download the  `GoogleNews-vectors-negative300.bin ` from https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?resourcekey=0-wjGZdNAUop6WykTtMip30g and place it in  `/preprocess_system `
+
+## Search Example with UI
+```bash
+python UI.py
+```
+![image](https://github.com/user-attachments/assets/379a91c6-c0d8-4aa7-bd4a-e3e43186f2f3)
+
+
+
+## Search Example with cmd
 ```bash
 cd IR-project
-python main.py "face identify" --use_bm25 --use_bert --top_n 5 --use_expansion --exp_sem 
+python main.py "face identify" --use_bm25 --use_bert --top_n 5 --use_expansion --exp_sem
+
+Parameter include :
+    parser.add_argument("--use_bm25", action="store_true", help="Enable BM25-based search")
+    parser.add_argument("--use_bert", action="store_true", help="Enable BERT-based semantic search")
+    parser.add_argument("--use_expansion", action="store_true", help="Query expansion")
+    parser.add_argument("--exp_syn", action="store_true", help="Apply synoyms expansion")
+    parser.add_argument("--exp_sem", action="store_true", help="Query semantic expansion")
+    parser.add_argument("--top_n", type=int,default=10, help='Max number of documents return')
+    parser.add_argument("--use_summary", action="store_true", help='Enable BART summarization')
+    parser.add_argument("--bm25_weight", type=float, default=0.7, 
+                   help="Weight for BM25 in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--vector_weight", type=float, default=0.3,
+                   help="Weight for vector search in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--sem_method", type=int, default=1,
+               help=" 0:Semantic expansion on GoogleNews-vectors\n 1: Expansion using GenAI")
 ```
 Output :
 ```bash
