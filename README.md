@@ -37,7 +37,11 @@ This project uses **Elasticsearch** for indexing and retrieving documents. The p
   
 ```
 ### Build the indexing system
-If you want to build the indexing system with, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
+If you want to build the indexing system with, run the python `Rebuild.py `, 
+```bash
+python ./Rebuild.py
+```
+You can also edit `use_bert` and `max_doc` inside the file:
 ```python
 if __name__=="__main__":
     index_name = "arxiv_index"
