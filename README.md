@@ -40,7 +40,7 @@ When building the docker, the indices will be restore using the script ` /databa
   
 ```
 ### Build the indexing system
-We highly recommend you rebuild the indexing system, since there are only 300 indexes in the data currently.
+We highly recommend you rebuild the indexing system, since there are only 300 indexes in the data currently, it also affects the performance of query expansion(Database-vector-similarity).
 **Before you rebuild, please make sure you have placed the 'kaggle.json' at './database/data/`**
 ```bash
 python ./Rebuild.py
