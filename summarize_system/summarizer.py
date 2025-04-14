@@ -45,8 +45,8 @@ class deepseekSummarizer:
 class BartSummarizer:
     def __init__(self, device):
         self.device = device
-        self.tokenizer = BartTokenizer.from_pretrained('facebook/bart-large-cnn')
-        self.model = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn').to(self.device)
+        self.tokenizer = BartTokenizer.from_pretrained('sshleifer/distilbart-cnn-12-6')
+        self.model = BartForConditionalGeneration.from_pretrained('sshleifer/distilbart-cnn-12-6').to(self.device)
 
     def summarize(self, text, max_length=130, min_length=30):
         torch.cuda.empty_cache()

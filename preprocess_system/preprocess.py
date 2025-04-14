@@ -328,26 +328,25 @@ class preprocess_sys():
 
         if self.device == "cuda" and word2vec_vectors is not None:
             print("Using GPU for expansion with batch processing")
-            batch_size = self._set_batch_size(vector_size=300)  # 300 dimensions for GoogleNews
+            batch_size = self._set_batch_size(vector_size=300)
 
             for id, word in enumerate(words):
                 if word in self.vocab_words:
                     word_idx = self.vocab_words.index(word)
-                    word_vec = word2vec_vectors[word_idx].unsqueeze(0)  # Already on GPU
+                    word_vec = word2vec_vectors[word_idx].unsqueeze(0)
                     related_words[word] = []
 
-                    # Process vectors in batches
                     for i in range(0, len(self.vocab_words), batch_size):
-                        batch_vectors = word2vec_vectors[i:i + batch_size]  # Already on GPU
+                        batch_vectors = word2vec_vectors[i:i + batch_size]
                         similarities = torch.cosine_similarity(word_vec, batch_vectors)
                         scores, indices = torch.topk(similarities, k=min(topn + 1, batch_vectors.shape[0]), largest=True)
 
-                        for score, idx in zip(scores[1:], indices[1:]):  # Skip self
+                        for score, idx in zip(scores[1:], indices[1:]):
                             w = self.vocab_words[i + idx.item()]
                             if score.item() >= min_similarity and self.preprocess_text(w) != preprocessed_ori_words[id] and w != word:
                                 related_words[word].append(w)
 
-                    torch.cuda.empty_cache()  # Clear temporary GPU memory
+                    torch.cuda.empty_cache()
         else:
             print("Using CPU for expansion with GoogleNews embeddings")
             for id, word in enumerate(words):
@@ -358,23 +357,30 @@ class preprocess_sys():
                         if score >= min_similarity and self.preprocess_text(w) != preprocessed_ori_words[id]:
                             related_words[word].append(w)
 
-        # Generate expansions with balanced representation
-        if len(words) > 1:
-            # Expand each word independently
-            for i, orig_word in enumerate(words):
-                if orig_word in related_words:
+        # Modified Expansion Logic for Balanced Representation
+        from itertools import combinations
+
+        # Generate expansions by replacing 1 to len(words) words
+        for num_replacements in range(1, len(words) + 1):  # Replace 1 word, 2 words, ..., all words
+            # Get all combinations of positions to replace
+            for positions in combinations(range(len(words)), num_replacements):
+                # For each combination of positions, generate all possible substitutions
+                def generate_combinations(pos_idx, current_term, replacements):
+                    if pos_idx == len(positions):
+                        expanded_terms.append(" ".join(current_term))
+                        return
+                    pos = positions[pos_idx]
+                    orig_word = words[pos]
+                    if orig_word not in related_words:
+                        generate_combinations(pos_idx + 1, current_term, replacements)
+                        return
                     for new_word in related_words[orig_word]:
-                        new_term = words.copy()
-                        new_term[i] = new_word
-                        expanded_terms.append(" ".join(new_term))
-            
-            # Add combinations of both words changing
-            if len(words) == 2 and words[0] in related_words and words[1] in related_words:
-                for w1 in related_words[words[0]]:
-                    for w2 in related_words[words[1]]:
-                        expanded_terms.append(f"{w1} {w2}")
-        else:
-            expanded_terms.extend(related_words.get(words[0], []))
+                        new_term = current_term.copy()
+                        new_term[pos] = new_word
+                        generate_combinations(pos_idx + 1, new_term, replacements)
+
+                # Start with the original query
+                generate_combinations(0, words.copy(), positions)
 
         # Filter and limit
         expanded_terms = [term for term in expanded_terms if term != query and term]

@@ -1,0 +1,23 @@
+[
+    {
+      "query": "graph neural networks",
+      "relevant_titles": [
+        "Semi-Supervised Classification with Graph Convolutional Networks",
+        "Graph Attention Networks"
+      ]
+    },
+    {
+      "query": "face recognition",
+      "relevant_titles": [
+        "Comparing Robustness of Pairwise Multiclass Neural Network System for Face Recognition"
+      ]
+    },
+    {
+      "query": "reinforcement learning",
+      "relevant_titles": [
+        "A Survey of Reinforcement Learning Applications in Robotics",
+        "Deep Reinforcement Learning: An Overview"
+      ]
+    }
+  ]
+  
