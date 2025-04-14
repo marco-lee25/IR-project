@@ -58,6 +58,7 @@ Before running the program, please download the  `GoogleNews-vectors-negative300
 ```bash
 python UI.py
 ```
+![image](https://github.com/user-attachments/assets/379a91c6-c0d8-4aa7-bd4a-e3e43186f2f3)
 
 
 
