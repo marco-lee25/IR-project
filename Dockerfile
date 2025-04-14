@@ -23,4 +23,4 @@ RUN chmod +x /usr/share/elasticsearch/import_index.py
 USER elasticsearch
 
 # Start Elasticsearch, wait for it, then import index
-CMD ["/bin/bash", "-c", "/usr/local/bin/docker-entrypoint.sh & echo 'Waiting for Elasticsearch to start...' && until curl -s http://localhost:9200 >/dev/null; do sleep 5; done"]
+# CMD ["/bin/bash", "-c", "/usr/local/bin/docker-entrypoint.sh & echo 'Waiting for Elasticsearch to start...' && until curl -s http://localhost:9200 >/dev/null; do sleep 5; done"]
