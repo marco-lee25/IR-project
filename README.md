@@ -51,7 +51,14 @@ if __name__=="__main__":
     max_doc=2000
     build_index_system(index_name, use_bert, max_doc)
 ```
-## Search Example
+## Search Example with UI
+```bash
+python UI.py
+```
+
+
+
+## Search Example with cmd
 ```bash
 cd IR-project
 python main.py "face identify" --use_bm25 --use_bert --top_n 5 --use_expansion --exp_sem 
