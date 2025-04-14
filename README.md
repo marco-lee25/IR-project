@@ -1,4 +1,4 @@
-# IR Project - Search Engine 
+# IR Project - Search Engine - Grp 26
 
 ## Environment setup
 Before running the project, ensure you have **Conda** (for Python environment management) and **Docker** (to run the Elasticsearch server) installed.
