@@ -65,7 +65,22 @@ python UI.py
 ## Search Example with cmd
 ```bash
 cd IR-project
-python main.py "face identify" --use_bm25 --use_bert --top_n 5 --use_expansion --exp_sem 
+python main.py "face identify" --use_bm25 --use_bert --top_n 5 --use_expansion --exp_sem
+
+Parameter include :
+    parser.add_argument("--use_bm25", action="store_true", help="Enable BM25-based search")
+    parser.add_argument("--use_bert", action="store_true", help="Enable BERT-based semantic search")
+    parser.add_argument("--use_expansion", action="store_true", help="Query expansion")
+    parser.add_argument("--exp_syn", action="store_true", help="Apply synoyms expansion")
+    parser.add_argument("--exp_sem", action="store_true", help="Query semantic expansion")
+    parser.add_argument("--top_n", type=int,default=10, help='Max number of documents return')
+    parser.add_argument("--use_summary", action="store_true", help='Enable BART summarization')
+    parser.add_argument("--bm25_weight", type=float, default=0.7, 
+                   help="Weight for BM25 in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--vector_weight", type=float, default=0.3,
+                   help="Weight for vector search in hybrid ranking (0.0-1.0)")
+    parser.add_argument("--sem_method", type=int, default=1,
+               help=" 0:Semantic expansion on GoogleNews-vectors\n 1: Expansion using GenAI")
 ```
 Output :
 ```bash
