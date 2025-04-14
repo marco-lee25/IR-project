@@ -52,63 +52,82 @@ python main.py "face identify" --use_bm25 --use_bert --top_n 5 --use_expansion -
 ```
 Output :
 ```bash
+Initalizing preprocess system...
+Loading GoogleNews-vectors-negative300 embeddings...
 Initalizing search engine...
-Performing semantic query expansion using word2vec
-Expanded terms before limit: ['face indentify', 'face locate', 'face pinpoint', 'face uncover', 'face toidentify', 'face indentified', 'face define', 'face detect', 'face classify']
+Performing semantic query expansion using GoogleNews-vectors-negative300 on GPU
+Using CPU for expansion with GoogleNews embeddings
+Expanded terms before limit: ['face indentify', 'face locate', 'face pinpoint', 'face uncover', 'face indentified', 'face define', 'face detect', 'face classify', 'face analyze']
 Expanded terms: ['face identify', 'face indentify', 'face locate', 'face pinpoint']
 Query expansion result : ['face identify', 'face indentify', 'face locate', 'face pinpoint']
 Query: ['face identify', 'face indentify', 'face locate', 'face pinpoint']
 BM25: True, Vector: True
-Hybrid search
+Hybrid search with weighted query terms
 Elasticsearch server is running.
-Index 'arxiv_index' exists with 6001 documents.
-==================================================
-RESULT 1:
-Title: Comparing Robustness of Pairwise and Multiclass Neural-Network Systems
+Index 'arxiv_index' exists with 1001 documents.
+bm25 only search
+Elasticsearch server is running.
+Index 'arxiv_index' exists with 1001 documents.
+Handling msearch case
+Bert only search
+Elasticsearch server is running.
+Index 'arxiv_index' exists with 1001 documents.
+Handling msearch case
+
+=== RANKING COMPARISON ===
+BM25 Order                               | Vector Order                             | Hybrid Order                            
+------------------------------------------------------------------------------------------------------------------------
+Comparing Robustness of Pairwise an...   | Classification of artificial intell...   | Hybrid Tractable Classes of Binary ...   
+BM25: 16.61 | Vector: 2.56 | Combined: 0.78
+------------------------------------------------------------------------------------------------------------------------
+Emotion: Appraisal-coping model for...   | Detection and emergence                  | Multimodal Biometric Systems - Stud...   
+BM25: 10.37 | Vector: 2.52 | Combined: 0.77
+------------------------------------------------------------------------------------------------------------------------
+Emotion : mod\`ele d'appraisal-copi...   | Symmetry within Solutions                | Comparing Robustness of Pairwise an...   
+BM25: 10.17 | Vector: 2.52 | Combined: 0.74
+------------------------------------------------------------------------------------------------------------------------
+Hybrid Tractable Classes of Binary ...   | Multimodal Biometric Systems - Stud...   | When do Numbers Really Matter?           
+BM25: 10.01 | Vector: 2.51 | Combined: 0.66
+------------------------------------------------------------------------------------------------------------------------
+Multimodal Biometric Systems - Stud...   | A Directional Feature with Energy b...   | Back and Forth Between Rules and SE...   
+BM25: 9.97 | Vector: 2.50 | Combined: 0.65
+------------------------------------------------------------------------------------------------------------------------
+
+=== HYBRID RANKING RESULTS ===
+Rank 1: Hybrid Tractable Classes of Binary Quantified Constraint Satisfaction
+  Problems
+Abstract:   In this paper, we investigate the hybrid tractability of binary Quantified
+Constraint Satisfaction Problems (QCSPs). First, a basic tractable class ...
+Scores: BM25: 10.01 | Combined: 0.78 | (Norm: BM25=1.00, Vector=0.26)
+Summary:  In this paper, we investigate the hybrid tractability of binary Quantified-Constraint Satisfaction Problems (QCSPs) First, a basic tractable class of binary QCSPs is identified by using the broken-triangle property . Second, we break this restriction to allow that thatexistentially quantified variables can be shifted within or out of their blocks . Finally, we identify a more generalized tractable Class: the min-of-max extendable class .
+================================================================================
+Rank 2: Multimodal Biometric Systems - Study to Improve Accuracy and Performance
+Abstract:   Biometrics is the science and technology of measuring and analyzing
+biological data of human body, extracting a feature set from the acquired data,
+...
+Scores: BM25: 4.98 | Vector: 1.79 | Combined: 0.77 | (Norm: BM25=0.76, Vector=0.81)
+Summary:  Biometrics is the science and technology of measuring and analyzing the data of human body . Multimodal biometric systems perform better than unimodal systems and are popular even more complex also .
+================================================================================
+Rank 3: Comparing Robustness of Pairwise and Multiclass Neural-Network Systems
   for Face Recognition
 Abstract:   Noise, corruptions and variations in face images can seriously hurt the
 performance of face recognition systems. To make such systems robust,
-multiclass neuralnetwork classifiers capable of learning...
-BM25: 17.040 (norm: 1.000)
-Vector: 2.563 (norm: 1.000)
-Combined: 1.000
---------------------------------------------------
-RESULT 2:
-Title: Discovering Markov Blanket from Multiple interventional Datasets
-Abstract:   In this paper, we study the problem of discovering the Markov blanket (MB) of
-a target variable from multiple interventional datasets. Datasets attained from
-interventional experiments contain riche...
-BM25: 16.969 (norm: 0.993)
-Vector: 2.561 (norm: 0.997)
-Combined: 0.995
---------------------------------------------------
-RESULT 3:
-Title: Philosophy in the Face of Artificial Intelligence
-Abstract:   In this article, I discuss how the AI community views concerns about the
-emergence of superintelligent AI and related philosophical issues.
-...
-BM25: 14.214 (norm: 0.738)
-Vector: 2.534 (norm: 0.964)
-Combined: 0.851
---------------------------------------------------
-RESULT 4:
-Title: Quadratic Unconstrained Binary Optimization Problem Preprocessing:
-  Theory and Empirical Analysis
-Abstract:   The Quadratic Unconstrained Binary Optimization problem (QUBO) has become a
-unifying model for representing a wide range of combinatorial optimization
-problems, and for linking a variety of discipli...
-BM25: 14.032 (norm: 0.721)
-Vector: 2.531 (norm: 0.959)
-Combined: 0.840
---------------------------------------------------
-RESULT 5:
-Title: About Tau-Chain
-Abstract:   Tau-chain is a decentralized peer-to-peer network having three unified faces:
-Rules, Proofs, and Computer Programs, allowing a generalization of virtually
-any centralized or decentralized P2P networ...
-BM25: 13.594 (norm: 0.681)
-Vector: 2.529 (norm: 0.956)
-Combined: 0.818
+multic...
+Scores: BM25: 8.30 | Combined: 0.74 | (Norm: BM25=0.94, Vector=0.26)
+Summary:  Noise, corruptions and variations in face images can seriously hurt the performance of face recognition systems . Multiclass neuralnetwork classifiers capable of learning from noisy data have been suggested . However on large face data sets such systems cannot provide the robustness at a high level .
+================================================================================
+Rank 4: When do Numbers Really Matter?
+Abstract:   Common wisdom has it that small distinctions in the probabilities
+(parameters) quantifying a belief network do not matter much for the results of
+pr...
+Scores: BM25: 6.17 | Combined: 0.66 | (Norm: BM25=0.84, Vector=0.26)
+Summary:  Small variations in network parameters can lead to significant changes in computations, authors say . Authors: Small differences in probabilities do not matter much for probabilistic queries . They say their analytic results pinpoint some interesting situations under whichparameter changes do or not matter .
+================================================================================
+Rank 5: Back and Forth Between Rules and SE-Models (Extended Version)
+Abstract:   Rules in logic programming encode information about mutual interdependencies
+between literals that is not captured by any of the commonly used seman...
+Scores: BM25: 5.85 | Combined: 0.65 | (Norm: BM25=0.81, Vector=0.26)
+Summary:  Rules in logic programming encode information about mutual interdependencies that is not captured by any of the commonly used semantics . This information becomes essential as soon as a program needs to be modified or further manipulated . We argue that a program should not be viewed solely as the set of settings of its models .
+================================================================================
+
 ```
-
-
