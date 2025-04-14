@@ -28,7 +28,7 @@ This project uses **Elasticsearch** for indexing and retrieving documents. The p
 - `arxiv_index_data.json`
 - `arxiv_index_mapping.json`
 - `arxiv_index_settings.json`
-- 'sentence_corpus.pkl'
+- `sentence_corpus.pkl`
   
 ### Preprocessed indices information
 When building the docker, the indices will be restore using the script ` /database/import_index.py `. There are currently in total 300 documents (due to github's file size limitation), with topics named `cs.AI` from https://www.kaggle.com/datasets/Cornell-University/arxiv
