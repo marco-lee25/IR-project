@@ -22,13 +22,15 @@ pip install -r requirement.txt
 ```
 
 ## The elasticsearch server docker
-This project uses **Elasticsearch** for indexing and retrieving documents. The processed indices are stored in `./database/data/`:
+This project uses **Elasticsearch** for indexing and retrieving documents. The preprocessed indices are stored in `./database/data/`:
 
-**Elasticsearch Indices strcuture**:
+**Preprocessed Elasticsearch Indices**:
 - `arxiv_index_data.json`
 - `arxiv_index_mapping.json`
 - `arxiv_index_settings.json`
-
+  
+### Preprocessed indices information
+When building the docker, the indices will be restore using the script ` /database/import_index.py `. There are currently in total 300 documents (due to github's file size limitation), with topics named `cs.AI` from https://www.kaggle.com/datasets/Cornell-University/arxiv
 
 ### Setup docker for elasticsearch server
 ```bash
@@ -37,9 +39,8 @@ This project uses **Elasticsearch** for indexing and retrieving documents. The p
   
 ```
 ### Build the indexing system
-If you want to build the indexing system with, run the python `Rebuild.py ` 
-
-**Please make sure you have placed the 'kaggle.json' at './database/data/`**
+We highly recommend you rebuild the indexing system, since there are only 300 indexes in the data currently.
+**Before you rebuild, please make sure you have placed the 'kaggle.json' at './database/data/`**
 ```bash
 python ./Rebuild.py
 ```
@@ -48,7 +49,7 @@ You can also edit `use_bert` and `max_doc` inside the file:
 if __name__=="__main__":
     index_name = "arxiv_index"
     use_bert = True
-    max_doc=2000
+    max_doc=5000
     build_index_system(index_name, use_bert, max_doc)
 ```
 ## Downloading the Word2Vec data
