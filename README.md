@@ -1,8 +1,3 @@
-# TODO 
-1. Ranking system
-2. Refine semantic search and query expansion
-3. Summarization on result
-
 # IR Project - Search Engine 
 
 ## Environment setup
@@ -29,13 +24,11 @@ pip install -r requirement.txt
 ## The elasticsearch server docker
 This project uses **Elasticsearch** for indexing and retrieving documents. The preprocessed indices are stored in `./database/data/`:
 
-**Preprocessed Elasticsearch Indices**:
+**Elasticsearch Indices strcuture**:
 - `arxiv_index_data.json`
 - `arxiv_index_mapping.json`
 - `arxiv_index_settings.json`
-  
-### Preprocessed indices information
-When building the docker, the indices will be restore using the script ` /database/import_index.py `. There are currently in total 2000 documents, with topics named `cs.AI` from https://www.kaggle.com/datasets/Cornell-University/arxiv
+
 
 ### Setup docker for elasticsearch server
 ```bash
@@ -43,8 +36,8 @@ When building the docker, the indices will be restore using the script ` /databa
   docker run -d --name ir_project -e "discovery.type=single-node" -e "xpack.security.enabled=false" -p 9200:9200 ir-project_v8
   
 ```
-### Rebuild the indexing system
-If you want to rebuild the indexing system with different name, number of documents, or specify index method, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
+### Build the indexing system
+If you want to build the indexing system with, run the python `Rebuild.py `, you can edit `use_bert` and `max_doc` inside the file:
 ```python
 if __name__=="__main__":
     index_name = "arxiv_index"
