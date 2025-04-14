@@ -28,6 +28,7 @@ This project uses **Elasticsearch** for indexing and retrieving documents. The p
 - `arxiv_index_data.json`
 - `arxiv_index_mapping.json`
 - `arxiv_index_settings.json`
+- 'sentence_corpus.pkl'
   
 ### Preprocessed indices information
 When building the docker, the indices will be restore using the script ` /database/import_index.py `. There are currently in total 300 documents (due to github's file size limitation), with topics named `cs.AI` from https://www.kaggle.com/datasets/Cornell-University/arxiv
@@ -55,6 +56,13 @@ if __name__=="__main__":
 ## Downloading the Word2Vec data
 Before running the program, please download the  `GoogleNews-vectors-negative300.bin ` from https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?resourcekey=0-wjGZdNAUop6WykTtMip30g and place it in  `/preprocess_system `
 
+## Query expansion
+This project provided 4 different method on query expansion :
+1. Synonyms-based: WordNet
+2. Semantic-based: Database-vector-similarity
+3. Semantic-based: Word2Vec on GoogleNews-vectors-negative300
+4. Experiment: DeepSeek query expansion generation.
+   
 ## Search Example with UI
 ```bash
 python UI.py
