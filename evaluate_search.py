@@ -1,5 +1,4 @@
 from elasticsearch import Elasticsearch
-from database.process_data import build_index_system
 import search_engine
 import json
 import argparse
@@ -8,175 +7,133 @@ from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
 import torch
 from models.model import scibert_model, deepseek_model
+import pytrec_eval
+import os
 
-def precision_at_k(retrieved_titles, relevant_titles, k):
-    retrieved_k = retrieved_titles[:k]
-    relevant_set = set(title.lower() for title in relevant_titles)
-    match_count = sum(1 for title in retrieved_k if title.lower() in relevant_set)
-    return match_count / k
+def save_trec_run(results, query_id, run_name, output_file="results.trec"):
+    with open(output_file, 'a') as f:
+        for rank, doc in enumerate(results, 1):
+            score = doc.get('combined_score', doc.get('score', 0.0))
+            doc_id = doc.get('id', 'UNKNOWN')
+            f.write(f"{query_id} Q0 {doc_id} {rank} {score:.6f} {run_name}\n")
 
-def evaluate(queries_file, k=5, use_bm25=True, use_bert=True):
-    with open(queries_file, 'r') as f:
+def evaluate_trec(qrels_file, run_file, verbose=False):
+    qrels = {}
+    with open(qrels_file, 'r') as f_qrels:
+        for i, line in enumerate(f_qrels, 1):
+            line = line.strip()
+            # Hardcode skipping the first line
+            if i == 1:
+                print(f"Skipping first line: {line}")
+                continue
+            parts = line.split()
+            qid, _, docid, rel = parts
+            if not qid.isdigit():
+                print(f"Warning: Skipping line {i} with invalid qid: {line}")
+                continue
+            try:
+                rel_val = int(rel)
+            except ValueError:
+                print(f"Warning: Skipping line {i} with invalid rel: {line}")
+                continue
+            if qid not in qrels:
+                qrels[qid] = {}
+            qrels[qid][docid] = rel_val
+
+    if not qrels:
+        raise ValueError("No valid qrels data loaded. Check file format.")
+
+    run = {}
+    with open(run_file, 'r') as f_run:
+        for i, line in enumerate(f_run, 1):
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) < 6:
+                print(f"Warning: Skipping malformed run line {i}: {line}")
+                continue
+            qid, _, docid, _, score, _ = parts
+            if qid not in run:
+                run[qid] = {}
+            try:
+                run[qid][docid] = float(score)
+            except ValueError:
+                print(f"Warning: Skipping run line with invalid score: {line}")
+                continue
+
+    evaluator = pytrec_eval.RelevanceEvaluator(
+        qrels, {'map', 'ndcg', 'P_5', 'P_10', 'recall_5', 'recall_10'}
+    )
+    results = evaluator.evaluate(run)
+
+    if not results:
+        print("No evaluation results generated.")
+        return {}, {}
+
+    # Calculate aggregated metrics
+    aggregated = {}
+    metrics = ['map', 'ndcg', 'P_5', 'P_10', 'recall_5', 'recall_10']
+    for metric in metrics:
+        valid_results = [results[qid][metric] for qid in results if metric in results[qid]]
+        aggregated[metric] = sum(valid_results) / len(valid_results) if valid_results else 0.0
+
+    print(f"\nAveraged metrics over {len(results)} queries:")
+    for metric, value in aggregated.items():
+        print(f"{metric}: {value:.4f}")
+
+    if verbose:
+        print("\nPer-Query Metrics:")
+        for qid in results:
+            print(f"\nQuery ID: {qid}")
+            for metric, value in results[qid].items():
+                print(f"  {metric}: {value:.4f}")
+
+    return aggregated, results
+
+def load_queries(query_file, max_queries=100):
+    with open(query_file, 'r') as f:
         queries = json.load(f)
+    return queries[:max_queries]  # Limit to first 100 queries
 
-    total_precision = 0
-    for q in queries:
-        query = q["query"]
-        relevant_titles = q["relevant_titles"]
+def process_queries(se, queries, use_bm25=True, use_bert=False, top_n=5, summarizer=None, bm25_weight=0.7, vector_weight=0.3, qrels_file="test_set_qrels.txt", run_file="results.trec", verbose=False):
+    if os.path.exists(run_file):
+        os.remove(run_file)
 
-        results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=5)
-        retrieved_titles = [r['title'] for r in results]
+    ranker = HybridRanker(bm25_weight=bm25_weight, vector_weight=vector_weight)
 
-        precision = precision_at_k(retrieved_titles, relevant_titles, k)
-        total_precision += precision
+    for query_entry in queries:
+        qid = query_entry['qid']
+        query = query_entry['query']
+        print(f"\nProcessing Query ID: {qid}, Query: {query}")
 
-        print(f"\nQuery: {query}")
-        print(f"Precision@{k}: {precision:.2f}")
-        print("Top results:")
-        for title in retrieved_titles:
-            print(f"- {title}")
+        query_input = [query] if isinstance(query, str) else query
+        results_hybrid = se.search(query_input, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
 
-    avg_precision = total_precision / len(queries)
-    print(f"\nAverage Precision@{k}: {avg_precision:.2f}")
-
-def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
-    print(f"Query: {query}")
-    print(f"BM25: {use_bm25}, Vector: {use_bert}")
-    
-    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
-    ranker = HybridRanker(bm25_weight=args.bm25_weight, vector_weight=args.vector_weight)
-    # Apply hybrid ranking if both scores exist
-    if all('bm25_score' in doc and 'vector_score' in doc for doc in results) and ranker:
-        results = ranker.rank_documents(results)
-    
-    print("="*50)
-    for i, doc in enumerate(results[:top_n], 1):
-        output = [
-            f"RESULT {i}:",
-            f"Title: {doc['title']}",
-            f"Abstract: {doc['abstract'][:200]}...",
-        ]
-        
-        if 'combined_score' in doc:
-            output.extend([
-                f"BM25: {doc['bm25_score']:.3f} (norm: {doc['normalized_bm25']:.3f})",
-                f"Vector: {doc['vector_score']:.3f} (norm: {doc['normalized_vector']:.3f})",
-                f"Combined: {doc['combined_score']:.3f}"
-            ])
+        if use_bm25 and use_bert:
+            results_bm25 = se.search(query_input, use_bm25=True, use_bert=False, top_n=top_n)
+            results_bert = se.search(query_input, use_bm25=False, use_bert=True, top_n=top_n)
+            ranked_results = ranker.rank_documents(results_bm25, results_bert)
         else:
-            if use_bm25 == True and use_bert ==False:
-                output.append(f"BM25: {doc['score']:.3f}")
-            if use_bm25 == False and use_bert ==True:
-                output.append(f"Vector: {doc['score']:.3f}")
-            
-        if summarizer:
-            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
-            
-        print("\n".join(output) + "\n" + "-"*50)
+            ranked_results = results_hybrid
 
-def compare_rankings(results_hybrid, results_bm25, results_bert, ranker):
-    """Show difference between all three ranking methods"""
-    bm25_only = [doc.copy() for doc in results_bm25]
-    vector_only = [doc.copy() for doc in results_bert]
-    hybrid = [doc.copy() for doc in results_hybrid]
+        save_trec_run(ranked_results, qid, "hybrid", run_file)
 
-    bm25_sorted = sorted(bm25_only, key=lambda x: x['score'], reverse=True)
-    vector_sorted = sorted(vector_only, key=lambda x: x['score'], reverse=True)
-    hybrid_sorted = ranker.rank_documents(results_bm25, results_bert)
+        print(f"\n=== Results for Query ID: {qid} ===")
+        for i, doc in enumerate(ranked_results[:5], 1):
+            score = doc.get('combined_score', doc.get('score', 0.0))
+            doc_id = doc.get('id', 'UNKNOWN')
+            title = doc.get('title', 'No Title')
+            print(f"Rank {i}: {title} (ID: {doc_id}, Score: {score:.4f})")
 
-    print("\n=== RANKING COMPARISON ===")
-    print(f"{'BM25 Order':<40} | {'Vector Order':<40} | {'Hybrid Order':<40}")
-    print("-" * 120)
-    
-    for i in range(min(5, len(bm25_sorted))):
-        bm25_title = bm25_sorted[i]['title'][:35] + (bm25_sorted[i]['title'][35:] and '...')
-        vector_title = vector_sorted[i]['title'][:35] + (vector_sorted[i]['title'][35:] and '...')
-        hybrid_title = hybrid_sorted[i]['title'][:35] + (hybrid_sorted[i]['title'][35:] and '...')
-        
-        print(f"{bm25_title:<40} | {vector_title:<40} | {hybrid_title:<40} ")
-        print(f"BM25: {bm25_sorted[i]['score']:.2f} | "
-              f"Vector: {vector_sorted[i]['score']:.2f} | "
-              f"Combined: {hybrid_sorted[i].get('combined_score', 0):.2f}"
-            )
-        print("-" * 120)
-
-def process_input_compare_ranking(se, query, use_bm25=True, use_bert=True, top_n=5, summarizer=None):
-    print(f"Query: {query}")
-    print(f"BM25: {use_bm25}, Vector: {use_bert}")
-    
-    results_hybrid = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
-    results_bm25 = se.search(query, use_bm25=use_bm25, use_bert=False, top_n=top_n)
-    results_bert = se.search(query, use_bm25=False, use_bert=use_bert, top_n=top_n)
-    
-    if use_bm25 and use_bert:
-        ranker = HybridRanker(bm25_weight=args.bm25_weight, vector_weight=args.vector_weight)
-        ranked_results = ranker.rank_documents(results_bm25, results_bert)
-        compare_rankings(ranked_results, results_bm25, results_bert, ranker)
-        display_results(ranked_results, top_n, summarizer)
+    if os.path.exists(run_file) and os.path.exists(qrels_file):
+        print("\n=== Evaluating Results ===")
+        aggregated_metrics, per_query_results = evaluate_trec(qrels_file, run_file, verbose=verbose)
     else:
-        display_results(results_hybrid, top_n, summarizer)
+        print("Run file or qrels file missing. Skipping evaluation.")
+        aggregated_metrics, per_query_results = {}, {}
 
-def display_results(results, top_n, summarizer, ranking_method="Hybrid"):
-    print(f"\n=== {ranking_method.upper()} RANKING RESULTS ===")
-    
-    for i, doc in enumerate(results[:top_n], 1):
-        output = [
-            f"Rank {i}: {doc['title']}",
-            f"Abstract: {doc['abstract'][:150]}{'...' if len(doc['abstract']) > 150 else ''}"
-        ]
-        
-        score_info = []
-        if 'bm25_score' in doc:
-            score_info.append(f"BM25: {doc['bm25_score']:.2f}")
-        if 'vector_score' in doc:
-            score_info.append(f"Vector: {doc['vector_score']:.2f}")
-        if 'combined_score' in doc:
-            score_info.append(f"Combined: {doc['combined_score']:.2f}")
-            if 'normalized_bm25' in doc and 'normalized_vector' in doc:
-                score_info.append(
-                    f"(Norm: BM25={doc['normalized_bm25']:.2f}, "
-                    f"Vector={doc['normalized_vector']:.2f})"
-                )
-        
-        if score_info:
-            output.append("Scores: " + " | ".join(score_info))
-        
-        if summarizer:
-            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
-        
-        print("\n".join(output))
-        print("=" * 80)
-
-def process_input_no_rank(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None):
-    print(f"Query: {query}")
-    print(f"BM25: {use_bm25}, Vector: {use_bert}")
-    
-    results = se.search(query, use_bm25=use_bm25, use_bert=use_bert, top_n=top_n)
-    
-    print("="*50)
-    for i, doc in enumerate(results[:top_n], 1):
-        output = [
-            f"RESULT {i}:",
-            f"Title: {doc['title']}",
-            f"Abstract: {doc['abstract'][:200]}...",
-        ]
-        
-        if 'combined_score' in doc:
-            output.extend([
-                f"BM25: {doc['bm25_score']:.3f} (norm: {doc['normalized_bm25']:.3f})",
-                f"Vector: {doc['vector_score']:.3f} (norm: {doc['normalized_vector']:.3f})",
-                f"Combined: {doc['combined_score']:.3f}"
-            ])
-        else:
-            if use_bm25 == True and use_bert ==False:
-                output.append(f"BM25: {doc['score']:.3f}")
-            if use_bm25 == False and use_bert ==True:
-                output.append(f"Vector: {doc['score']:.3f}")
-            
-        if summarizer:
-            output.append(f"Summary: {summarizer.summarize(doc['abstract'])}")
-            
-        print("\n".join(output) + "\n" + "-"*50)
+    return aggregated_metrics, per_query_results
 
 if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -184,59 +141,66 @@ if __name__ == "__main__":
     summarizer = BartSummarizer("cpu")
     
     model = scibert_model(device)
-
     print("Initializing preprocess system...")
     preprocess = preprocess_sys(model, deepseek_model, deepseek_tokenizer, device)
-
     print("Initializing search engine...")
     se = search_engine.engine(model)
 
     parser = argparse.ArgumentParser(description="Run the search engine with parameters.")
-    
-    # Evaluation mode
-    parser.add_argument("--evaluate", action="store_true", help="Run evaluation mode")
-    parser.add_argument("--queries_file", type=str, default="queries.json", 
-                       help="Path to evaluation queries JSON file")
-    
-    # Positional argument: Query (only needed in search mode)
-    parser.add_argument("query", nargs="?", type=str, help="Search query") 
-
-    # Optional flags
-    parser.add_argument("--use_bm25", action="store_true", help="Enable BM25-based search")
-    parser.add_argument("--use_bert", action="store_true", help="Enable BERT-based semantic search")
+    parser.add_argument("--query_file", type=str, default="test_set_queries.json", help="Path to query JSON file")
+    parser.add_argument("--qrels_file", type=str, default="test_set_qrels.txt", help="Path to qrels file")
+    parser.add_argument("--use_bm25", action="store_true", help="Enable BM25-based search", default=True)
+    parser.add_argument("--use_bert", action="store_true", help="Enable BERT-based semantic search", default=False)
     parser.add_argument("--use_expansion", action="store_true", help="Query expansion")
     parser.add_argument("--exp_syn", action="store_true", help="Apply synonyms expansion")
     parser.add_argument("--exp_sem", action="store_true", help="Query semantic expansion")
-    parser.add_argument("--top_n", type=int, default=10, help='Max number of documents return')
-    parser.add_argument("--use_summary", action="store_true", help='Enable BART summarization')
-    parser.add_argument("--bm25_weight", type=float, default=0.5, 
-                   help="Weight for BM25 in hybrid ranking (0.0-1.0)")
-    parser.add_argument("--vector_weight", type=float, default=0.5,
-                   help="Weight for vector search in hybrid ranking (0.0-1.0)")
-    parser.add_argument("--sem_method", type=int, default=1,
-               help="0:Semantic expansion on GoogleNews-vectors\n1: Expansion using GenAI")
+    parser.add_argument("--top_n", type=int, default=5, help="Max number of documents to return")
+    parser.add_argument("--use_summary", action="store_true", help="Enable BART summarization")
+    parser.add_argument("--bm25_weight", type=float, default=0.7, help="Weight for BM25 in hybrid ranking")
+    parser.add_argument("--vector_weight", type=float, default=0.3, help="Weight for vector search in hybrid ranking")
+    parser.add_argument("--sem_method", type=int, default=2, help="0: Database-vector, 1: GoogleNews-vectors, 2: GenAI")
+    parser.add_argument("--verbose", action="store_true", help="Show per-query metrics")
     
     args = parser.parse_args()
 
-    if args.evaluate:
-        # Run evaluation mode
-        evaluate(args.queries_file, k=args.top_n, use_bm25=args.use_bm25, use_bert=args.use_bert)
-    else:
-        # Run normal search mode
-        if not args.query:
-            parser.error("Search query is required in search mode")
-            
-        summarizer = BartSummarizer(device) if args.use_summary else None 
+    queries = load_queries(args.query_file, max_queries=1000)  # Load only first 100 queries
+    print(f"Loaded {len(queries)} queries")
 
-        if args.use_expansion:
-            if not(args.exp_syn) and not(args.exp_sem):
-                print("Please specify expansion method by --exp_syn & --exp_sem")
-                exit()
-            processed_query = preprocess.process_query(args.query, use_semantic=args.exp_sem, 
-                                                     use_synonyms=args.exp_syn, sem_method=args.sem_method)
-            print(f"Query expansion result: {processed_query}")
-            process_input_compare_ranking(se, processed_query, args.use_bm25, args.use_bert, 
-                                        args.top_n, summarizer=summarizer)
-        else:
-            process_input_compare_ranking(se, [args.query], args.use_bm25, args.use_bert, 
-                                        args.top_n, summarizer=summarizer)
+    if args.use_expansion:
+        if not args.exp_syn and not args.exp_sem:
+            print("Please specify expansion method by --exp_syn & --exp_sem")
+            exit()
+        processed_queries = []
+        for query_entry in queries:
+            processed_query = preprocess.process_query(
+                query_entry['query'], 
+                use_semantic=args.exp_sem, 
+                use_synonyms=args.exp_syn, 
+                sem_method=args.sem_method
+            )
+            processed_queries.append({'qid': query_entry['qid'], 'query': processed_query})
+        aggregated_metrics, per_query_results = process_queries(
+            se, 
+            processed_queries, 
+            args.use_bm25, 
+            args.use_bert, 
+            args.top_n, 
+            summarizer if args.use_summary else None, 
+            args.bm25_weight, 
+            args.vector_weight, 
+            args.qrels_file, 
+            verbose=args.verbose
+        )
+    else:
+        aggregated_metrics, per_query_results = process_queries(
+            se, 
+            queries, 
+            args.use_bm25, 
+            args.use_bert, 
+            args.top_n, 
+            summarizer if args.use_summary else None, 
+            args.bm25_weight, 
+            args.vector_weight, 
+            args.qrels_file, 
+            verbose=args.verbose
+        )

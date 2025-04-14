@@ -224,6 +224,9 @@ class SearchUI:
             title_lines = self.wrap_text(f"Rank {i}: {doc['title']}", width=wrap_width)
             output.append("  " + "\n  ".join(title_lines) + "\n")
 
+            id = self.wrap_text(f"ID : {doc['id']}", width=wrap_width)
+            output.append("  " + "\n  ".join(id) + "\n")
+            
             abstract = doc.get('abstract', 'No abstract available')
             if len(abstract) > wrap_width * 3:
                 abstract = abstract[:wrap_width * 3 - 3] + "..."
