@@ -37,7 +37,9 @@ This project uses **Elasticsearch** for indexing and retrieving documents. The p
   
 ```
 ### Build the indexing system
-If you want to build the indexing system with, run the python `Rebuild.py `, 
+If you want to build the indexing system with, run the python `Rebuild.py ` 
+
+**Please make sure you have placed the 'kaggle.json' at './database/data/`**
 ```bash
 python ./Rebuild.py
 ```
