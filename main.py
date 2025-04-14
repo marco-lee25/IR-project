@@ -8,6 +8,28 @@ from summarize_system.summarizer import BartSummarizer
 from ranking_system.ranking_function import HybridRanker
 import torch
 from models.model import scibert_model, deepseek_model
+import os
+
+def export_eval_sample(query, results, save_path="evaluate_system/regex_eval_input.json"):
+    # Format results
+    formatted = {
+        "query": query,
+        "results": [{"title": r["title"], "abstract": r["abstract"]} for r in results]
+    }
+
+    # Load existing results
+    if os.path.exists(save_path):
+        with open(save_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        data = []
+
+    data.append(formatted)
+
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    print(f"\nSaved results to {save_path}")
 
 def process_input(se, query, use_bm25=True, use_bert=False, top_n=5, summarizer=None, ranker=None):
     print(f"Query: {query}")
@@ -223,5 +245,6 @@ if __name__ == "__main__":
     #     process_input(se, [args.query], args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)
 
         process_input_compare_ranking(se, processed_query, args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)
+        export_eval_sample(args.query, se.search(args.query, args.use_bm25, args.use_bert, args.top_n))
     else:
         process_input_compare_ranking(se, [args.query], args.use_bm25, args.use_bert, args.top_n, summarizer=summarizer)

@@ -32,4 +32,4 @@ def evaluate(queries_file, k=5, use_bm25=True, use_bert=True):
     print(f"\nAverage Precision@{k}: {avg_precision:.2f}")
 
 if __name__ == "__main__":
-    evaluate("evaluation/queries.json", k=5, use_bm25=True, use_bert=True)
+    evaluate("evaluate_system/queries.json", k=5, use_bm25=True, use_bert=True)

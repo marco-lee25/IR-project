@@ -10,14 +10,7 @@
                     "properties": {
                         "embedding": {
                             "type": "dense_vector",
-                            "dims": 768,
-                            "index": true,
-                            "similarity": "cosine",
-                            "index_options": {
-                                "type": "int8_hnsw",
-                                "m": 16,
-                                "ef_construction": 100
-                            }
+                            "dims": 768
                         },
                         "text": {
                             "type": "text"

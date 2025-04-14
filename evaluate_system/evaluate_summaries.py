@@ -23,5 +23,5 @@ def evaluate_bertscore(summaries_file):
     print(f"\nBERTScore - P: {P.mean():.4f}, R: {R.mean():.4f}, F1: {F1.mean():.4f}")
 
 if __name__ == "__main__":
-    evaluate_rouge("evaluation/summaries.json")
-    evaluate_bertscore("evaluation/summaries.json")
+    evaluate_rouge("summarize_system/summaries.json")
+    evaluate_bertscore("summarize_system/summaries.json")
