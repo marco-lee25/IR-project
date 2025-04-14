@@ -22,7 +22,7 @@ pip install -r requirement.txt
 ```
 
 ## The elasticsearch server docker
-This project uses **Elasticsearch** for indexing and retrieving documents. The preprocessed indices are stored in `./database/data/`:
+This project uses **Elasticsearch** for indexing and retrieving documents. The processed indices are stored in `./database/data/`:
 
 **Elasticsearch Indices strcuture**:
 - `arxiv_index_data.json`
