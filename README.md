@@ -42,6 +42,15 @@ When building the docker, the indices will be restore using the script ` /databa
 ### Build the indexing system
 We highly recommend you rebuild the indexing system, since there are only 300 indexes in the data currently, it also affects the performance of query expansion(Database-vector-similarity).
 **Before you rebuild, please make sure you have placed the 'kaggle.json' at './database/data/`**
+The 'kaggle.json' can be obtain by following these step:
+
+1. Sign in to your Kaggle account: Open your web browser and navigate to Kaggle. Log in using your credentials or create an account if you haven’t already done so.
+
+2. Navigate to the Account Settings page: Click on your profile picture or username in the top right corner of the Kaggle homepage, then select "My Account" from the dropdown menu. This will take you to your account settings page.
+
+3. Locate the API section: Scroll down the Account Settings page until you find the "API" section. In this section, you’ll see options to manage your API access.
+
+4. Create a new API token: Click on the "Create New API Token" button. This action will download a file named kaggle.json to your computer. This file contains your Kaggle API credentials.
 ```bash
 python ./Rebuild.py
 ```
@@ -54,7 +63,7 @@ if __name__=="__main__":
     build_index_system(index_name, use_bert, max_doc)
 ```
 ## Downloading the Word2Vec data
-Before running the program, please download the  `GoogleNews-vectors-negative300.bin ` from https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?resourcekey=0-wjGZdNAUop6WykTtMip30g and place it in  `/preprocess_system `
+Before running the program, please download and extrac the  `GoogleNews-vectors-negative300.bin ` from https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?resourcekey=0-wjGZdNAUop6WykTtMip30g and place it in  `/preprocess_system `
 
 ## Query expansion
 This project provided 4 different method on query expansion :
